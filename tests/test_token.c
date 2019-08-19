@@ -181,6 +181,10 @@ void *CRUDHandlerTask()
 {
 	return NULL;
 }
+void EventHandler()
+{
+	return;
+}
 
 int setup_test_jwts (void)
 {

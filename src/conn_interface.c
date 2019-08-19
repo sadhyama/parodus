@@ -32,6 +32,7 @@
 #include "mutex.h"
 #include "spin_thread.h"
 #include "service_alive.h"
+#include "event_handler_pc.h"
 #include "seshat_interface.h"
 #include "crud_interface.h"
 #include "heartBeat.h"
@@ -112,6 +113,7 @@ void createSocketConnection(void (* initKeypress)())
     ParodusMsgQ = NULL;
     StartThread(messageHandlerTask, &downstream_tid);
     StartThread(serviceAliveTask, &svc_alive_tid);
+    EventHandler();
     StartThread(CRUDHandlerTask, &crud_tid);
 
     if (NULL != initKeypress) 

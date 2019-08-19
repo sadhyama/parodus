@@ -145,7 +145,7 @@ set(CLIST_SRC test_client_list.c ../src/client_list.c ../src/auth_token.c
  ../src/service_alive.c ../src/upstream.c ../src/networking.c ../src/nopoll_helpers.c 
  ../src/downstream.c ../src/connection.c ../src/nopoll_handlers.c ../src/heartBeat.c ../src/close_retry.c
  ../src/ParodusInternal.c ../src/thread_tasks.c ../src/conn_interface.c 
- ../src/partners_check.c ../src/crud_interface.c ../src/crud_tasks.c ../src/crud_internal.c ${PARODUS_COMMON_SRC})
+ ../src/partners_check.c ../src/crud_interface.c ../src/crud_tasks.c ../src/crud_internal.c ../src/event_handler_pc.c ${PARODUS_COMMON_SRC})
 
 if (ENABLE_SESHAT)
 set(CLIST_SRC ${CLIST_SRC} ../src/seshat_interface.c)
@@ -163,7 +163,7 @@ target_link_libraries (test_client_list ${PARODUS_COMMON_LIBS} -lcurl -luuid)
 add_test(NAME test_service_alive COMMAND ${MEMORY_CHECK} ./test_service_alive)
 #add_executable(test_service_alive test_service_alive.c ../src/client_list.c ../src/service_alive.c ../src/upstream.c ../src/networking.c ../src/nopoll_helpers.c ../src/nopoll_handlers.c ../src/config.c ../src/connection.c ../src/ParodusInternal.c ../src/downstream.c ../src/thread_tasks.c ../src/conn_interface.c ../src/partners_check.c ${PARODUS_COMMON_SRC})
 #target_link_libraries (test_service_alive ${PARODUS_COMMON_LIBS})
-set(SVA_SRC test_service_alive.c ../src/client_list.c ../src/service_alive.c ../src/auth_token.c ../src/upstream.c ../src/networking.c ../src/nopoll_helpers.c ../src/nopoll_handlers.c ../src/config.c ../src/connection.c ../src/ParodusInternal.c ../src/downstream.c ../src/thread_tasks.c ../src/conn_interface.c ../src/partners_check.c ../src/heartBeat.c ../src/close_retry.c ${PARODUS_COMMON_SRC})
+set(SVA_SRC test_service_alive.c ../src/client_list.c ../src/service_alive.c ../src/auth_token.c ../src/upstream.c ../src/networking.c ../src/nopoll_helpers.c ../src/nopoll_handlers.c ../src/config.c ../src/connection.c ../src/ParodusInternal.c ../src/downstream.c ../src/thread_tasks.c ../src/conn_interface.c ../src/partners_check.c ../src/heartBeat.c ../src/event_handler_pc.c ../src/close_retry.c ${PARODUS_COMMON_SRC})
 if (ENABLE_SESHAT)
 set(SVA_SRC ${SVA_SRC} ../src/seshat_interface.c)
 else()
@@ -283,6 +283,7 @@ set(CONIFC_SRC test_conn_interface.c
   ../src/mutex.c
   ../src/heartBeat.c
   ../src/close_retry.c
+  ../src/event_handler_pc.c
 )
 if (ENABLE_SESHAT)
 set(CONIFC_SRC ${CONIFC_SRC} ../src/seshat_interface.c)
@@ -319,7 +320,7 @@ set(TOKEN_SRC ../src/conn_interface.c ../src/config.c
  ../src/networking.c ../src/auth_token.c
  ../src/thread_tasks.c ../src/time.c
  ../src/string_helpers.c ../src/mutex.c 
- ../src/token.c ../src/heartBeat.c
+ ../src/token.c ../src/heartBeat.c ../src/event_handler_pc.c
  ../src/close_retry.c
  )
 

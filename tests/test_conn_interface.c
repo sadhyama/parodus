@@ -88,6 +88,22 @@ void packMetaData()
     function_called();
 }
 
+bool get_interface_down_event()
+{
+	return NULL;
+}
+
+// Reset value of interface_down_event to false
+void reset_interface_down_event()
+{
+
+}
+
+// set value of interface_down_event to true
+void set_interface_down_event()
+{
+
+}
 
 int get_cloud_disconnect_time(void)
 {
