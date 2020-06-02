@@ -554,8 +554,11 @@ int wait_connection_ready (create_connection_ctx_t *ctx)
   }
   if(wait_status == 307 || wait_status == 302 || wait_status == 303)    // only when there is a http redirect
   {
-	char *redirect_ptr = redirectURL;
+	//char *redirect_ptr = redirectURL;
+	char *redirect_ptr = NULL;
 	ParodusInfo("Received temporary redirection response message %s\n", redirectURL);
+	redirect_ptr = strdup("Redirect:https://talaria-prod-00101-240-300-2kr.xmidt.comcast.net:8080/api/v2/device");
+	ParodusInfo("redirect_ptr is %s\n", redirect_ptr);
 	// Extract server Address and port from the redirectURL
 	if (strncmp (redirect_ptr, "Redirect:", 9) == 0)
 	    redirect_ptr += 9;
