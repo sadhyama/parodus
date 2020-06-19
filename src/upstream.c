@@ -419,10 +419,35 @@ void *processUpstreamMessage()
 								}
 						} else if (WRP_MSG_TYPE__SVC_ALIVE != msgType) {
 						  /* Don't reply to service alive message */
-							sendUpstreamMsgToServer(&message->msg, message->len);
-						}
+
+							/***************Aker POC ********************/
+
+							/*** Disabled server flow for aker test purpose ***/
+							//TODO: sendUpstreamMsgToServer(&message->msg, message->len);
+							temp = get_global_node();
+							while (NULL != temp)
+							{
+								ParodusInfo("node is pointing to temp->service_name %s temp->url %s \n",temp->service_name, temp->url);
+								ParodusInfo("dest is %s\n", msg->u.crud.dest);
+								msg->u.crud.dest = "aker";
+								// Sending message to registered clients
+								if( strcmp(msg->u.crud.dest, temp->service_name) == 0)
+								{
+									ParodusInfo("sending to nanomsg client aker\n");
+									int byteSend = nn_send(temp->sock, (const char*)message->msg, (size_t)message->len, 0);
+									ParodusInfo("sent downstream message to reg_client '%s'\n",temp->url);
+									ParodusInfo("downstream bytes sent:%d\n", byteSend);
+									break;
+								}
+								ParodusPrint("checking the next item in the list\n");
+								temp= temp->next;
+							}
+							release_global_node ();
+							/***************Aker POC ********************/
+
 					}
-            	}
+			  }
+		    }
            	}
             else
             {
@@ -441,12 +466,12 @@ void *processUpstreamMessage()
 					ParodusError ("Failed to free msg\n");
 				}
 			}
-			ParodusPrint("Free for upstream decoded msg\n");
+			ParodusInfo("Free for upstream decoded msg\n");
 			if (msg) {
-                wrp_free_struct(msg);
+                //wrp_free_struct(msg); //TODO: need to correct free.
             }
 			msg = NULL;
-			free(message);
+			//free(message);
 			message = NULL;
         }
         else

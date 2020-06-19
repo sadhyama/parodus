@@ -236,7 +236,7 @@ add_executable(test_upstream test_upstream.c ../src/upstream.c ../src/close_retr
 target_link_libraries (test_upstream -lcmocka gcov -lcunit -lcimplog
  -lwrp-c -luuid -lpthread -lmsgpackc -lnopoll
  -Wl,--no-as-needed -lcjson -lcjwt -ltrower-base64
- -lssl -lcrypto -lrt -lm)
+ -lssl -lcrypto -lrt -lm -lnanomsg)
 
 #-------------------------------------------------------------------------------
 #   test_upstream_sock
