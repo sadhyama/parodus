@@ -376,7 +376,7 @@ void *processUpstreamMessage()
 					}
 					else
 					{
-						ParodusInfo(" Received upstream data with MsgType: %d dest: '%s' transaction_uuid: %s status: %d\n",msgType, msg->u.crud.dest, msg->u.crud.transaction_uuid, msg->u.crud.status );
+						ParodusInfo(" Received upstream data with MsgType: %d source:%s dest: '%s' transaction_uuid: %s status: %d\n",msgType, msg->u.crud.source, msg->u.crud.dest, msg->u.crud.transaction_uuid, msg->u.crud.status );
 						if(WRP_MSG_TYPE__RETREIVE == msgType)
 						{
 								ret = getDeviceId(&device_id, &device_id_len);
@@ -417,34 +417,40 @@ void *processUpstreamMessage()
 								{
 									ParodusError("Failed to get device_id\n");
 								}
-						} else if (WRP_MSG_TYPE__SVC_ALIVE != msgType) {
-						  /* Don't reply to service alive message */
-
-							/***************Aker POC ********************/
-
-							/*** Disabled server flow for aker test purpose ***/
-							//TODO: sendUpstreamMsgToServer(&message->msg, message->len);
-							temp = get_global_node();
-							while (NULL != temp)
+						}
+						else if((WRP_MSG_TYPE__UPDATE == msgType) || (WRP_MSG_TYPE__DELETE == msgType))
+						{
+							ParodusInfo("UPDATE/DELETE request\n");
+							ret = getDeviceId(&device_id, &device_id_len);
+							if(ret == 0)
 							{
-								ParodusInfo("node is pointing to temp->service_name %s temp->url %s \n",temp->service_name, temp->url);
-								ParodusInfo("dest is %s\n", msg->u.crud.dest);
-								msg->u.crud.dest = "aker";
-								// Sending message to registered clients
-								if( strcmp(msg->u.crud.dest, temp->service_name) == 0)
+								ParodusInfo("device_id %s device_id_len %lu\n", device_id, device_id_len);
+								/* Match dest based on device_id. Check dest start with: "mac:112233445xxx" ? */
+								if( 0 == strncasecmp(device_id, msg->u.crud.dest, device_id_len-1) )
 								{
-									ParodusInfo("sending to nanomsg client aker\n");
-									int byteSend = nn_send(temp->sock, (const char*)message->msg, (size_t)message->len, 0);
-									ParodusInfo("sent downstream message to reg_client '%s'\n",temp->url);
-									ParodusInfo("downstream bytes sent:%d\n", byteSend);
-									break;
+									/* For this device. For nanomsg clients.*/
+									getServiceNameAndSendResponse(msg, &message->msg, message->len);
 								}
-								ParodusPrint("checking the next item in the list\n");
-								temp= temp->next;
+								else
+								{
+									/* Not for this device. Send upstream */
+									ParodusInfo("sendUpstreamMsgToServer \n");
+									sendUpstreamMsgToServer(&message->msg, message->len);
+								}
+								if(device_id != NULL)
+								{
+									free(device_id);
+									device_id = NULL;
+								}
 							}
-							release_global_node ();
-							/***************Aker POC ********************/
-
+							else
+							{
+								ParodusError("Failed to get device_id\n");
+							}
+						 }
+						 else if (WRP_MSG_TYPE__SVC_ALIVE != msgType) {
+						  /* Don't reply to service alive message */
+							sendUpstreamMsgToServer(&message->msg, message->len);
 					}
 			  }
 		    }
@@ -461,17 +467,17 @@ void *processUpstreamMessage()
 			}
 			else
 			{
-				if(nn_freemsg (message->msg) < 0)
+				/*if(nn_freemsg (message->msg) < 0)
 				{
 					ParodusError ("Failed to free msg\n");
-				}
+				}*/
 			}
 			ParodusInfo("Free for upstream decoded msg\n");
 			if (msg) {
                 //wrp_free_struct(msg); //TODO: need to correct free.
             }
 			msg = NULL;
-			//free(message);
+			free(message);
 			message = NULL;
         }
         else
