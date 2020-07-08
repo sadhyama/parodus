@@ -574,18 +574,32 @@ void getServiceNameAndSendResponse(wrp_msg_t *msg, void **msg_bytes, size_t msg_
 {
 	char *serviceName = NULL;
 	int sendStatus =-1;
+	int retry_count = 0;
+	int backoffRetryTime = 0;
+	int c=2;
 
 	serviceName = wrp_get_msg_element(WRP_ID_ELEMENT__SERVICE, msg, DEST);
 	if ( serviceName != NULL)
 	{
-		sendStatus=sendMsgtoRegisteredClients(serviceName,(const char **)msg_bytes, msg_size);
-		if(sendStatus ==1)
+		while(retry_count<=3)
 		{
-			ParodusInfo("Send upstreamMsg successfully to registered client %s\n", serviceName);
-		}
-		else
-		{
-			ParodusError("Failed to send upstreamMsg to registered client %s\n", serviceName);
+			backoffRetryTime = (int) pow(2, c) -1;
+
+			sendStatus=sendMsgtoRegisteredClients(serviceName,(const char **)msg_bytes, msg_size);
+			if(sendStatus ==1)
+			{
+				ParodusInfo("Send upstreamMsg successfully to registered client %s\n", serviceName);
+				retry_count = 0;
+				break;
+			}
+			else
+			{
+				ParodusError("Failed to send upstreamMsg to registered client %s, retrying ..\n", serviceName);
+				ParodusInfo("sendMsgtoRegisteredClients backoffRetryTime %d seconds\n", backoffRetryTime);
+				sleep(backoffRetryTime);
+				c++;
+				retry_count++;
+			}
 		}
 		free(serviceName);
 		serviceName = NULL;
