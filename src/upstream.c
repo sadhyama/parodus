@@ -41,7 +41,7 @@
 
 void *metadataPack;
 size_t metaPackSize=-1;
-
+int retryFlag = 0;
 
 UpStreamMsg *UpStreamMsgQ = NULL;
 
@@ -486,7 +486,7 @@ void *processUpstreamMessage()
                 pthread_mutex_unlock (&nano_mut);
                 break;
             }
-            ParodusPrint("Before pthread cond wait in consumer thread\n");   
+            ParodusPrint("Before pthread cond wait in consumer thread\n");
             pthread_cond_wait(&nano_con, &nano_mut);
             pthread_mutex_unlock (&nano_mut);
             ParodusPrint("mutex unlock in consumer thread after cond wait\n");
@@ -574,32 +574,21 @@ void getServiceNameAndSendResponse(wrp_msg_t *msg, void **msg_bytes, size_t msg_
 {
 	char *serviceName = NULL;
 	int sendStatus =-1;
-	int retry_count = 0;
-	int backoffRetryTime = 0;
-	int c=2;
 
 	serviceName = wrp_get_msg_element(WRP_ID_ELEMENT__SERVICE, msg, DEST);
 	if ( serviceName != NULL)
 	{
-		while(retry_count<=3)
+		sendStatus=sendMsgtoRegisteredClients(serviceName,(const char **)msg_bytes, msg_size);
+		if(sendStatus ==1)
 		{
-			backoffRetryTime = (int) pow(2, c) -1;
-
-			sendStatus=sendMsgtoRegisteredClients(serviceName,(const char **)msg_bytes, msg_size);
-			if(sendStatus ==1)
-			{
-				ParodusInfo("Send upstreamMsg successfully to registered client %s\n", serviceName);
-				retry_count = 0;
-				break;
-			}
-			else
-			{
-				ParodusError("Failed to send upstreamMsg to registered client %s, retrying ..\n", serviceName);
-				ParodusInfo("sendMsgtoRegisteredClients backoffRetryTime %d seconds\n", backoffRetryTime);
-				sleep(backoffRetryTime);
-				c++;
-				retry_count++;
-			}
+			ParodusInfo("Send upstreamMsg successfully to registered client %s\n", serviceName);
+		}
+		else
+		{
+			ParodusError("Failed to send upstreamMsg to registered client %s\n", serviceName);
+			ParodusInfo("Add to CRUD Msg Queue for retrying\n");
+			retryFlag =1;
+			addCRUDmsgToQueue(msg);
 		}
 		free(serviceName);
 		serviceName = NULL;

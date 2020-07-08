@@ -39,7 +39,7 @@ pthread_cond_t crud_con=PTHREAD_COND_INITIALIZER;
 /*----------------------------------------------------------------------------*/
 
 CrudMsg *crudMsgQ = NULL;
-
+extern int retryFlag;
 /*----------------------------------------------------------------------------*/
 /*                             External functions                             */
 /*----------------------------------------------------------------------------*/
@@ -109,24 +109,34 @@ void *CRUDHandlerTask()
 			pthread_mutex_unlock(&crud_mut);
 			ParodusPrint("Mutex unlock in CRUD consumer thread\n");
 
-			ret = processCrudRequest(message->msg, &crud_response);
-			wrp_free_struct(message->msg);
-			free(message);
-			message = NULL;
-
-			if(ret == 0)
+			if(retryFlag)
 			{
-				ParodusInfo("CRUD processed successfully\n");
+				retryFlag = 0;
+				ParodusInfo("sleep 10s\n");
+				sleep(10);
+				crud_response = message->msg;
 			}
 			else
 			{
-				ParodusError("Failure in CRUD request processing !!\n");
+				ret = processCrudRequest(message->msg, &crud_response);
+				wrp_free_struct(message->msg);
+				free(message);
+				message = NULL;
+
+				if(ret == 0)
+				{
+					ParodusInfo("CRUD processed successfully\n");
+				}
+				else
+				{
+					ParodusError("Failure in CRUD request processing !!\n");
+				}
 			}
 			ParodusPrint("msgpack encode to send to upstream\n");
 			resp_size = wrp_struct_to( crud_response, WRP_BYTES, &resp_bytes );
-			ParodusPrint("Encoded CRUD resp_size :%lu\n", resp_size);
+			ParodusInfo("Encoded CRUD resp_size :%lu\n", resp_size);
 
-			ParodusPrint("Adding CRUD response to upstreamQ\n");
+			ParodusInfo("Adding CRUD response to upstreamQ\n");
 			addCRUDresponseToUpstreamQ(resp_bytes, resp_size);
 			wrp_free_struct(crud_response);
 		}
