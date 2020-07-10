@@ -294,3 +294,24 @@ int sendMsgtoRegisteredClients(char *dest,const char **Msg,size_t msgSize)
 	release_global_node ();
 	return 0;
 }
+
+//To check aker client registration status with parodus.
+int checkAkerClientStatus()
+{
+	reg_list_item_t *temp = NULL;
+	temp = get_global_node();
+	while (NULL != temp)
+	{
+		ParodusPrint("node is pointing to temp->service_name %s \n",temp->service_name);
+		// Sending message to registered clients
+		if( strcmp("aker", temp->service_name) == 0)
+		{
+			release_global_node ();
+			return 1;
+		}
+		ParodusPrint("checking the next item in the list\n");
+		temp= temp->next;
+	}
+	release_global_node ();
+	return 0;
+}

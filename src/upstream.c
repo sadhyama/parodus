@@ -586,9 +586,6 @@ void getServiceNameAndSendResponse(wrp_msg_t *msg, void **msg_bytes, size_t msg_
 		else
 		{
 			ParodusError("Failed to send upstreamMsg to registered client %s\n", serviceName);
-			ParodusInfo("Add to CRUD Msg Queue for retrying\n");
-			retryFlag =1;
-			addCRUDmsgToQueue(msg);
 		}
 		free(serviceName);
 		serviceName = NULL;

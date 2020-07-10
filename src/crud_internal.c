@@ -26,6 +26,9 @@
 #include "config.h"
 #include "connection.h"
 #include "close_retry.h"
+#include "client_list.h"
+
+#define AKER_STATUS "aker-status"
 
 static void freeObjArray(char *(*obj)[], int size);
 static int writeIntoCrudJson(cJSON *res_obj, char * object, cJSON *objValue, int freeFlag);
@@ -588,6 +591,22 @@ int retrieveFromMemory(char *keyName, cJSON **jsonresponse)
 			ParodusInfo("retrieveFromMemory: keyName:%s value:%s\n", keyName, get_parodus_cfg()->cloud_status);
 			cJSON_AddItemToObject( *jsonresponse, CLOUD_STATUS , cJSON_CreateString(get_parodus_cfg()->cloud_status));
 		}
+	}
+	else if(strcmp(AKER_STATUS, keyName)==0)
+	{
+		char *akstatus = NULL;
+		if(checkAkerClientStatus())
+		{
+			akstatus = strdup("online");
+		}
+		else
+		{
+			akstatus = strdup("offline");
+		}
+		ParodusInfo("retrieveFromMemory: keyName:%s value:%s\n", keyName, akstatus);
+		cJSON_AddItemToObject( *jsonresponse, AKER_STATUS , cJSON_CreateString(akstatus));
+		free(akstatus);
+		akstatus = NULL;
 	}
 	else if(strcmp(BOOT_TIME, keyName)==0)
 	{
