@@ -28,7 +28,7 @@
 #include "close_retry.h"
 #include "client_list.h"
 
-#define AKER_STATUS "aker-status"
+#define SERVICE_STATUS "service-status"
 
 static void freeObjArray(char *(*obj)[], int size);
 static int writeIntoCrudJson(cJSON *res_obj, char * object, cJSON *objValue, int freeFlag);
@@ -592,21 +592,33 @@ int retrieveFromMemory(char *keyName, cJSON **jsonresponse)
 			cJSON_AddItemToObject( *jsonresponse, CLOUD_STATUS , cJSON_CreateString(get_parodus_cfg()->cloud_status));
 		}
 	}
-	else if(strcmp(AKER_STATUS, keyName)==0)
+	else if(strstr("status", keyName)==0)
 	{
-		char *akstatus = NULL;
-		if(checkAkerClientStatus())
+		char *service = NULL;
+		const char s[2] = "-";
+		service = strtok(keyName, s);
+		if(service !=NULL)
 		{
-			akstatus = strdup("online");
+			ParodusInfo("service is %s\n", service);
+			char *regstatus = NULL;
+
+			if(checkClientStatus(service))
+			{
+				regstatus = strdup("online");
+			}
+			else
+			{
+				regstatus = strdup("offline");
+			}
+			ParodusInfo("retrieveFromMemory: keyName:%s value:%s\n", keyName, regstatus);
+			cJSON_AddItemToObject( *jsonresponse, SERVICE_STATUS , cJSON_CreateString(regstatus));
+			free(regstatus);
+			regstatus = NULL;
 		}
 		else
 		{
-			akstatus = strdup("offline");
+			ParodusError("Failed to get service name\n");
 		}
-		ParodusInfo("retrieveFromMemory: keyName:%s value:%s\n", keyName, akstatus);
-		cJSON_AddItemToObject( *jsonresponse, AKER_STATUS , cJSON_CreateString(akstatus));
-		free(akstatus);
-		akstatus = NULL;
 	}
 	else if(strcmp(BOOT_TIME, keyName)==0)
 	{
