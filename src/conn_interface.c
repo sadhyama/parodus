@@ -138,8 +138,9 @@ void createSocketConnection(void (* initKeypress)())
         timespec_diff(&start, &stop, &diff);
         time_taken_ms = diff.tv_sec * 1000 + (diff.tv_nsec / 1000000);
 
-        // ParodusInfo("nopoll_loop_wait() time %d msec\n", time_taken_ms);
+        ParodusInfo("nopoll_loop_wait() time %d msec\n", time_taken_ms);
 	heartBeatTimer = get_heartBeatTimer();
+	ParodusInfo("heartBeatTimer %d\n", heartBeatTimer);
         if(heartBeatTimer >= webpa_ping_timeout_ms)
         {
             ParodusInfo("heartBeatTimer %d webpa_ping_timeout_ms %d\n", heartBeatTimer, webpa_ping_timeout_ms);
