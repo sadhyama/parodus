@@ -388,30 +388,30 @@ void createOutParamsandSendAck(wrp_msg_t *msg, rbusMethodAsyncHandle_t asyncHand
 	rbusValue_Release(value);*/
 
 	rbusValue_Init(&value);
-	rbusValue_SetString(value, "Async method response from parodus");
+	rbusValue_SetString(value, "event");
 	rbusObject_Init(&outParams, NULL);
-	rbusObject_SetValue(outParams, "parodus_ack_response", value);
+	rbusObject_SetValue(outParams, "msg_type", value);
 	rbusValue_Release(value);
 
-	rbusValue_Init(&value1);
-	rbusValue_SetString(value1, "event");
+	//rbusValue_Init(&value1);
+	//rbusValue_SetString(value1, "event");
 	//rbusObject_Init(&outParams, NULL);
-	rbusObject_SetValue(outParams, "msg_type", value1);
-	rbusValue_Release(value1);
+	//rbusObject_SetValue(outParams, "msg_type", value1);
+	//rbusValue_Release(value1);
 
-	/*rbusValue_Init(&value);
+	rbusValue_Init(&value);
 	rbusValue_SetString(value, msg->u.event.source);
-	rbusObject_SetValue(outParam, "source", value);
+	rbusObject_SetValue(outParams, "source", value);
 	rbusValue_Release(value);
 
 	rbusValue_Init(&value);
 	rbusValue_SetString(value, msg->u.event.dest);
-	rbusObject_SetValue(outParam, "dest", value);
+	rbusObject_SetValue(outParams, "dest", value);
 	rbusValue_Release(value);
 
 	rbusValue_Init(&value);
 	rbusValue_SetString(value, msg->u.event.content_type);
-	rbusObject_SetValue(outParam, "content_type", value);
+	rbusObject_SetValue(outParams, "content_type", value);
 	rbusValue_Release(value);
 
 
@@ -420,26 +420,26 @@ void createOutParamsandSendAck(wrp_msg_t *msg, rbusMethodAsyncHandle_t asyncHand
 	snprintf(qosstring, sizeof(qosstring), "%d", msg->u.event.qos);
 	ParodusInfo("qosstring is %s\n", qosstring);
 	rbusValue_SetString(value, qosstring);
-	rbusObject_SetValue(outParam, "qos", value);
+	rbusObject_SetValue(outParams, "qos", value);
 	rbusValue_Release(value);
 
 	ParodusInfo("statuscode %d errorMsg %s\n", statuscode, errorMsg);
-	rbusValue_Init(&value);
+	/*rbusValue_Init(&value);
 	rbusValue_SetInt32(value, statuscode);
-	rbusObject_SetValue(outParam, "status", value);
-	rbusValue_Release(value);
+	rbusObject_SetValue(outParams, "status", value);
+	rbusValue_Release(value);*/
 
 	rbusValue_Init(&value);
 	rbusValue_SetString(value, errorMsg);
-	rbusObject_SetValue(outParam, "error_message", value);
+	rbusObject_SetValue(outParams, "error_message", value);
 	rbusValue_Release(value);
 
 	rbusValue_Init(&value);
 	rbusValue_SetString(value, "transaction_uuid"); //change this to actual transid
-	rbusObject_SetValue(outParam, "transaction_uuid", value);
-	rbusValue_Release(value);*/
+	rbusObject_SetValue(outParams, "transaction_uuid", value);
+	rbusValue_Release(value);
 
-	ParodusInfo("2 createOutParams done\n");
+	ParodusInfo("multiple createOutParams done\n");
 
 	if(outParams !=NULL)
 	{
