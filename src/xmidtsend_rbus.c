@@ -370,6 +370,7 @@ void createOutParamsandSendAck(wrp_msg_t *msg, rbusMethodAsyncHandle_t asyncHand
 	rbusObject_t outParams;
 	rbusError_t err;
 	rbusValue_t value;
+	rbusValue_t value1;
 	char qosstring[20] = "";
 
 	if(msg == NULL)
@@ -391,6 +392,12 @@ void createOutParamsandSendAck(wrp_msg_t *msg, rbusMethodAsyncHandle_t asyncHand
 	rbusObject_Init(&outParams, NULL);
 	rbusObject_SetValue(outParams, "parodus_ack_response", value);
 	rbusValue_Release(value);
+
+	rbusValue_Init(&value1);
+	rbusValue_SetString(value1, "event");
+	//rbusObject_Init(&outParams, NULL);
+	rbusObject_SetValue(outParams, "msg_type", value1);
+	rbusValue_Release(value1);
 
 	/*rbusValue_Init(&value);
 	rbusValue_SetString(value, msg->u.event.source);
@@ -432,7 +439,7 @@ void createOutParamsandSendAck(wrp_msg_t *msg, rbusMethodAsyncHandle_t asyncHand
 	rbusObject_SetValue(outParam, "transaction_uuid", value);
 	rbusValue_Release(value);*/
 
-	ParodusInfo("1 createOutParams done\n");
+	ParodusInfo("2 createOutParams done\n");
 
 	if(outParams !=NULL)
 	{
