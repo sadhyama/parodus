@@ -367,7 +367,7 @@ void sendXmidtEventToServer(wrp_msg_t * msg)
 
 void createOutParamsandSendAck(wrp_msg_t *msg, rbusMethodAsyncHandle_t asyncHandle, char *errorMsg, int statuscode)
 {
-	rbusObject_t outParam;
+	rbusObject_t outParams;
 	rbusError_t err;
 	rbusValue_t value;
 	char qosstring[20] = "";
@@ -379,14 +379,20 @@ void createOutParamsandSendAck(wrp_msg_t *msg, rbusMethodAsyncHandle_t asyncHand
 	}
 
 	ParodusInfo("createOutParams\n");
-	rbusObject_Init(&outParam, NULL);
+
+	/*rbusValue_Init(&value);
+	rbusValue_SetString(value, "event");
+	rbusObject_Init(&outParams, NULL);
+	rbusObject_SetValue(outParams, "msg_type", value);
+	rbusValue_Release(value);*/
 
 	rbusValue_Init(&value);
-	rbusValue_SetString(value, "event");
-	rbusObject_SetValue(outParam, "msg_type", value);
+	rbusValue_SetString(value, "Async method response from parodus");
+	rbusObject_Init(&outParams, NULL);
+	rbusObject_SetValue(outParams, "parodus_ack_response", value);
 	rbusValue_Release(value);
 
-	rbusValue_Init(&value);
+	/*rbusValue_Init(&value);
 	rbusValue_SetString(value, msg->u.event.source);
 	rbusObject_SetValue(outParam, "source", value);
 	rbusValue_Release(value);
@@ -424,19 +430,20 @@ void createOutParamsandSendAck(wrp_msg_t *msg, rbusMethodAsyncHandle_t asyncHand
 	rbusValue_Init(&value);
 	rbusValue_SetString(value, "transaction_uuid"); //change this to actual transid
 	rbusObject_SetValue(outParam, "transaction_uuid", value);
-	rbusValue_Release(value);
+	rbusValue_Release(value);*/
 
-	ParodusInfo("createOutParams done\n");
+	ParodusInfo("1 createOutParams done\n");
 
-	if(outParam !=NULL)
+	if(outParams !=NULL)
 	{
-		ParodusInfo("B4 rbusMethod_SendAsyncResponse\n");
+		ParodusInfo("asyncHandle check\n");
 		if(asyncHandle == NULL)
 		{
 			ParodusInfo("asyncHandle is NULL\n");
 			return;
 		}
-		err = rbusMethod_SendAsyncResponse(asyncHandle, RBUS_ERROR_INVALID_INPUT, outParam);
+		ParodusInfo("B4 rbusMethod_SendAsyncResponse ..\n");
+		err = rbusMethod_SendAsyncResponse(asyncHandle, RBUS_ERROR_INVALID_RESPONSE_FROM_DESTINATION, outParams);
 		ParodusInfo("After rbusMethod_SendAsyncResponse\n");
 		ParodusInfo("err is %d RBUS_ERROR_SUCCESS %d\n", err, RBUS_ERROR_SUCCESS);
 		if(err != RBUS_ERROR_SUCCESS)
@@ -448,7 +455,7 @@ void createOutParamsandSendAck(wrp_msg_t *msg, rbusMethodAsyncHandle_t asyncHand
 			ParodusInfo("rbusMethod_SendAsyncResponse success:%d\n", err);
 		}
 		ParodusInfo("Release outParams\n");
-		rbusObject_Release(outParam);
+		rbusObject_Release(outParams);
 		ParodusInfo("outParams released\n");
 	}
 	else
@@ -639,6 +646,8 @@ static rbusError_t sendDataHandler(rbusHandle_t handle, char const* methodName, 
 		inStatus = checkInputParameters(inParams);
 		if(inStatus)
 		{
+			ParodusInfo("InParam Retain\n");
+			rbusObject_Retain(inParams);
 			parseRbusInparamsToWrp(inParams, &wrpMsg);
 			//generate transaction id to create outParams and send ack
 			transaction_uuid = generate_transaction_uuid();
