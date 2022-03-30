@@ -478,10 +478,10 @@ char* generate_transaction_uuid()
 
 void parseRbusInparamsToWrp(rbusObject_t inParams, char *trans_id, wrp_msg_t **eventMsg)
 {
-	const char *msg_typeStr = NULL;
-	const char *sourceVal = NULL;
-	const char *destStr = NULL, *contenttypeStr = NULL;
-	const char *payloadStr = NULL, *qosVal = NULL;
+	char *msg_typeStr = NULL;
+	char *sourceVal = NULL;
+	char *destStr = NULL, *contenttypeStr = NULL;
+	char *payloadStr = NULL, *qosVal = NULL;
 	unsigned int payloadlength = 0;
 
 	wrp_msg_t *msg = NULL;
@@ -497,7 +497,7 @@ void parseRbusInparamsToWrp(rbusObject_t inParams, char *trans_id, wrp_msg_t **e
 	{
 		if(rbusValue_GetType(msg_type) == RBUS_STRING)
 		{
-			msg_typeStr = rbusValue_GetString(msg_type, NULL);
+			msg_typeStr = (char *) rbusValue_GetString(msg_type, NULL);
 			ParodusInfo("msg_type value received is %s\n", msg_typeStr);
 			if((msg_typeStr !=NULL) && (strcmp(msg_typeStr, "event") ==0))
 			{
@@ -515,13 +515,11 @@ void parseRbusInparamsToWrp(rbusObject_t inParams, char *trans_id, wrp_msg_t **e
 	{
 		if(rbusValue_GetType(source) == RBUS_STRING)
 		{
-			sourceVal = rbusValue_GetString(source, NULL);
+			sourceVal = (char *)rbusValue_GetString(source, NULL);
 			if(sourceVal !=NULL)
 			{
 				ParodusInfo("source value received is %s\n", sourceVal);
-				msg->u.event.source = strdup(sourceVal);
-				free(sourceVal);
-				sourceVal = NULL;
+				msg->u.event.source = sourceVal;
 			}
 			ParodusInfo("msg->u.event.source is %s\n", msg->u.event.source);
 		}
@@ -536,13 +534,11 @@ void parseRbusInparamsToWrp(rbusObject_t inParams, char *trans_id, wrp_msg_t **e
 	{
 		if(rbusValue_GetType(dest) == RBUS_STRING)
 		{
-			destStr = rbusValue_GetString(dest, NULL);
+			destStr = (char *)rbusValue_GetString(dest, NULL);
 			if(destStr !=NULL)
 			{
 				ParodusInfo("dest value received is %s\n", destStr);
-				msg->u.event.dest = strdup(destStr);
-				free(destStr);
-				destStr = NULL;
+				msg->u.event.dest = destStr;
 				ParodusInfo("msg->u.event.dest is %s\n", msg->u.event.dest);
 			}
 		}
@@ -557,14 +553,12 @@ void parseRbusInparamsToWrp(rbusObject_t inParams, char *trans_id, wrp_msg_t **e
 	{
 		if(rbusValue_GetType(contenttype) == RBUS_STRING)
 		{
-			contenttypeStr = rbusValue_GetString(contenttype, NULL);
+			contenttypeStr = (char *)rbusValue_GetString(contenttype, NULL);
 			if(contenttypeStr !=NULL)
 			{
 				ParodusInfo("contenttype value received is %s\n", contenttypeStr);
-				msg->u.event.content_type = strdup(contenttypeStr);
-				free(contenttypeStr);
-				contenttypeStr = NULL;
-				ParodusPrint("msg->u.event.content_type is %s\n", msg->u.event.content_type);
+				msg->u.event.content_type = contenttypeStr;
+				ParodusInfo("msg->u.event.content_type is %s\n", msg->u.event.content_type);
 			}
 		}
 	}
@@ -578,14 +572,12 @@ void parseRbusInparamsToWrp(rbusObject_t inParams, char *trans_id, wrp_msg_t **e
 	{
 		if((rbusValue_GetType(payload) == RBUS_STRING))
 		{
-			payloadStr = rbusValue_GetString(payload, NULL);
+			payloadStr = (char *)rbusValue_GetString(payload, NULL);
 			if(payloadStr !=NULL)
 			{
 				ParodusInfo("payload received is %s\n", payloadStr);
-				msg->u.event.payload = strdup(payloadStr);
-				free(payloadStr);
-				payloadStr = NULL;
-				ParodusPrint("msg->u.event.payload is %s\n", msg->u.event.payload);
+				msg->u.event.payload = payloadStr;
+				ParodusInfo("msg->u.event.payload is %s\n", msg->u.event.payload);
 			}
 		}
 	}
@@ -603,7 +595,7 @@ void parseRbusInparamsToWrp(rbusObject_t inParams, char *trans_id, wrp_msg_t **e
 			payloadlength = rbusValue_GetInt32(payloadlen);
 			ParodusPrint("payloadlen received is %lu\n", payloadlength);
 			msg->u.event.payload_size = (size_t) payloadlength;
-			ParodusPrint("msg->u.event.payload_size is %lu\n", msg->u.event.payload_size);
+			ParodusInfo("msg->u.event.payload_size is %lu\n", msg->u.event.payload_size);
 		}
 	}
 	else
@@ -618,7 +610,7 @@ void parseRbusInparamsToWrp(rbusObject_t inParams, char *trans_id, wrp_msg_t **e
 		if(rbusValue_GetType(qos) == RBUS_STRING)
 		{
 			ParodusPrint("qos type %d RBUS_STRING %d\n", rbusValue_GetType(qos), RBUS_STRING);
-			qosVal = rbusValue_GetString(qos, NULL);
+			qosVal = (char *)rbusValue_GetString(qos, NULL);
 			ParodusInfo("qos received is %s\n", qosVal);
 			if(qosVal !=NULL)
 			{
@@ -648,6 +640,7 @@ void parseRbusInparamsToWrp(rbusObject_t inParams, char *trans_id, wrp_msg_t **e
 static rbusError_t sendDataHandler(rbusHandle_t handle, char const* methodName, rbusObject_t inParams, rbusObject_t outParams, rbusMethodAsyncHandle_t asyncHandle)
 {
 	(void) handle;
+	(void) outParams;
 	int inStatus = 0;
 	char *transaction_uuid = NULL;
 	wrp_msg_t *wrpMsg= NULL;
@@ -679,6 +672,8 @@ static rbusError_t sendDataHandler(rbusHandle_t handle, char const* methodName, 
 		ParodusError("Method %s received is not supported\n", methodName);
 		return RBUS_ERROR_BUS_ERROR;
 	}
+	ParodusInfo("send RBUS_ERROR_SUCCESS\n");
+	return RBUS_ERROR_SUCCESS;
 }
 
 
