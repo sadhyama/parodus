@@ -572,7 +572,7 @@ void parseRbusInparamsToWrp(rbusObject_t inParams, char *trans_id, wrp_msg_t **e
 	{
 		if((rbusValue_GetType(payload) == RBUS_STRING))
 		{
-			payloadStr = rbusValue_GetString(payload, NULL);
+			payloadStr = (char *)rbusValue_GetString(payload, NULL);
 			if(payloadStr !=NULL)
 			{
 				ParodusInfo("payload received is %s\n", payloadStr);
@@ -664,7 +664,7 @@ static rbusError_t sendDataHandler(rbusHandle_t handle, char const* methodName, 
 			//xmidt send producer
 			addToXmidtUpstreamQ(wrpMsg, asyncHandle);
 			ParodusInfo("sendDataHandler returned %d\n", RBUS_ERROR_ASYNC_RESPONSE);
-			//return RBUS_ERROR_ASYNC_RESPONSE;
+			return RBUS_ERROR_ASYNC_RESPONSE;
 		}
 		else
 		{
@@ -676,8 +676,8 @@ static rbusError_t sendDataHandler(rbusHandle_t handle, char const* methodName, 
 		ParodusError("Method %s received is not supported\n", methodName);
 		return RBUS_ERROR_BUS_ERROR;
 	}
-	//ParodusInfo("send RBUS_ERROR_SUCCESS\n");
-	//return RBUS_ERROR_SUCCESS;
+	ParodusInfo("send RBUS_ERROR_SUCCESS\n");
+	return RBUS_ERROR_SUCCESS;
 }
 
 
