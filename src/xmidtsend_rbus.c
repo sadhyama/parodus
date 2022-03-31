@@ -519,7 +519,7 @@ void parseRbusInparamsToWrp(rbusObject_t inParams, char *trans_id, wrp_msg_t **e
 			if(sourceVal !=NULL)
 			{
 				ParodusInfo("source value received is %s\n", sourceVal);
-				msg->u.event.source = sourceVal;
+				msg->u.event.source = strdup(sourceVal);
 			}
 			ParodusInfo("msg->u.event.source is %s\n", msg->u.event.source);
 		}
@@ -538,7 +538,7 @@ void parseRbusInparamsToWrp(rbusObject_t inParams, char *trans_id, wrp_msg_t **e
 			if(destStr !=NULL)
 			{
 				ParodusInfo("dest value received is %s\n", destStr);
-				msg->u.event.dest = destStr;
+				msg->u.event.dest = strdup(destStr);
 				ParodusInfo("msg->u.event.dest is %s\n", msg->u.event.dest);
 			}
 		}
@@ -557,7 +557,7 @@ void parseRbusInparamsToWrp(rbusObject_t inParams, char *trans_id, wrp_msg_t **e
 			if(contenttypeStr !=NULL)
 			{
 				ParodusInfo("contenttype value received is %s\n", contenttypeStr);
-				msg->u.event.content_type = contenttypeStr;
+				msg->u.event.content_type = strdup(contenttypeStr);
 				ParodusInfo("msg->u.event.content_type is %s\n", msg->u.event.content_type);
 			}
 		}
@@ -572,12 +572,16 @@ void parseRbusInparamsToWrp(rbusObject_t inParams, char *trans_id, wrp_msg_t **e
 	{
 		if((rbusValue_GetType(payload) == RBUS_STRING))
 		{
-			payloadStr = (char *)rbusValue_GetString(payload, NULL);
+			payloadStr = rbusValue_GetString(payload, NULL);
 			if(payloadStr !=NULL)
 			{
 				ParodusInfo("payload received is %s\n", payloadStr);
-				msg->u.event.payload = payloadStr;
+				msg->u.event.payload = strdup(payloadStr); //free
 				ParodusInfo("msg->u.event.payload is %s\n", msg->u.event.payload);
+			}
+			else
+			{
+				ParodusError("payloadStr is empty\n");
 			}
 		}
 	}
@@ -672,8 +676,8 @@ static rbusError_t sendDataHandler(rbusHandle_t handle, char const* methodName, 
 		ParodusError("Method %s received is not supported\n", methodName);
 		return RBUS_ERROR_BUS_ERROR;
 	}
-	ParodusInfo("send RBUS_ERROR_SUCCESS\n");
-	return RBUS_ERROR_SUCCESS;
+	//ParodusInfo("send RBUS_ERROR_SUCCESS\n");
+	//return RBUS_ERROR_SUCCESS;
 }
 
 
