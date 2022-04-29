@@ -391,9 +391,16 @@ void sendXmidtEventToServer(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle
 		while(sendRetStatus)     //If SendMessage is failed condition
 		{
 			ParodusError("sendXmidtEventToServer is Failed\n");
-			if(highQosValueCheck(qos))
+			if(highQosValueCheck(qos) || get_parodus_init())
 			{
-				ParodusPrint("The event is having high qos retry again\n");
+				if(get_parodus_init())
+				{
+					ParodusInfo("Event received before parodus cloud connection, init: %d\n", get_parodus_init());
+				}
+				else
+				{
+					ParodusInfo("The event is having high qos, retry again\n");
+				}
 				ParodusInfo("Wait till connection is Up\n");
 
 				pthread_mutex_lock(get_global_cloud_status_mut());
