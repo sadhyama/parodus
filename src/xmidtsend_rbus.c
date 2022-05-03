@@ -59,7 +59,7 @@ void addToXmidtUpstreamQ(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle)
 {
 	XmidtMsg *message;
 
-	ParodusPrint("XmidtQsize is %d\n" , XmidtQsize);
+	ParodusInfo("XmidtQsize is %d\n" , XmidtQsize);
 	if(XmidtQsize == MAX_QUEUE_SIZE)
 	{
 		char * errorMsg = strdup("Max Queue Size Exceeded");
@@ -191,7 +191,7 @@ int processData(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle)
 	ParodusPrint("validateXmidtData, errorMsg %s statuscode %d\n", errorMsg, statuscode);
 	if(rv)
 	{
-		ParodusPrint("validation successful, send event to server\n");
+		ParodusInfo("validation successful, send event to server\n");
 		sendXmidtEventToServer(xmidtMsg, asyncHandle);
 		return rv;
 	}
@@ -299,7 +299,7 @@ void sendXmidtEventToServer(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle
 		memset(notif_wrp_msg, 0, sizeof(wrp_msg_t));
 		notif_wrp_msg->msg_type = WRP_MSG_TYPE__EVENT;
 
-		ParodusPrint("msg->u.event.source: %s\n",msg->u.event.source);
+		ParodusInfo("msg->u.event.source: %s\n",msg->u.event.source);
 
 		if(msg->u.event.source !=NULL)
 		{
@@ -307,9 +307,9 @@ void sendXmidtEventToServer(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle
 			ret = getDeviceId(&device_id, &device_id_len);
 			if(ret == 0)
 			{
-				ParodusPrint("device_id %s device_id_len %lu\n", device_id, device_id_len);
+				ParodusInfo("device_id %s device_id_len %lu\n", device_id, device_id_len);
 				snprintf(sourceStr, sizeof(sourceStr), "%s/%s", device_id, msg->u.event.source);
-				ParodusPrint("sourceStr formed is %s\n" , sourceStr);
+				ParodusInfo("sourceStr formed is %s\n" , sourceStr);
 				notif_wrp_msg->u.event.source = strdup(sourceStr);
 				ParodusInfo("source:%s\n", notif_wrp_msg->u.event.source);
 			}
@@ -333,7 +333,7 @@ void sendXmidtEventToServer(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle
 		if(msg->u.event.transaction_uuid != NULL)
 		{
 			notif_wrp_msg->u.event.transaction_uuid = msg->u.event.transaction_uuid;
-			ParodusPrint("Notification transaction_uuid %s\n", notif_wrp_msg->u.event.transaction_uuid);
+			ParodusInfo("Notification transaction_uuid %s\n", notif_wrp_msg->u.event.transaction_uuid);
 		}
 
 		if(msg->u.event.content_type != NULL)
@@ -342,7 +342,7 @@ void sendXmidtEventToServer(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle
 			{
 				notif_wrp_msg->u.event.content_type = strdup("application/json");
 			}
-			ParodusPrint("content_type is %s\n",notif_wrp_msg->u.event.content_type);
+			ParodusInfo("content_type is %s\n",notif_wrp_msg->u.event.content_type);
 		}
 
 		if(msg->u.event.payload != NULL)
@@ -350,7 +350,7 @@ void sendXmidtEventToServer(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle
 			ParodusInfo("Notification payload: %s\n",msg->u.event.payload);
 			notif_wrp_msg->u.event.payload = (void *)msg->u.event.payload;
 			notif_wrp_msg->u.event.payload_size = msg->u.event.payload_size;
-			ParodusPrint("payload size %lu\n", notif_wrp_msg->u.event.payload_size);
+			ParodusInfo("payload size %lu\n", notif_wrp_msg->u.event.payload_size);
 		}
 
 		if(msg->u.event.qos != 0)
@@ -359,12 +359,13 @@ void sendXmidtEventToServer(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle
 			qos = notif_wrp_msg->u.event.qos;
 			ParodusInfo("Notification qos: %d\n",notif_wrp_msg->u.event.qos);
 		}
+		ParodusInfo("B4 wrp encode\n");
 		msg_len = wrp_struct_to (notif_wrp_msg, WRP_BYTES, &msg_bytes);
 
-		ParodusPrint("Encoded xmidt wrp msg, msg_len %lu\n", msg_len);
+		ParodusInfo("Encoded xmidt wrp msg, msg_len %lu\n", msg_len);
 		if(msg_len > 0)
 		{
-			ParodusPrint("sendUpstreamMsgToServer\n");
+			ParodusInfo("sendUpstreamMsgToServer\n");
 			sendRetStatus = sendUpstreamMsgToServer(&msg_bytes, msg_len);
 		}
 		else
@@ -374,7 +375,7 @@ void sendXmidtEventToServer(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle
 			createOutParamsandSendAck(msg, asyncHandle, errorMsg, WRP_ENCODE_FAILURE, RBUS_ERROR_INVALID_RESPONSE_FROM_DESTINATION);
 			xmidtQDequeue();
 
-			ParodusPrint("wrp_free_struct\n");
+			ParodusInfo("wrp_free_struct\n");
 			if(notif_wrp_msg != NULL)
 			{
 				wrp_free_struct(notif_wrp_msg);
@@ -426,7 +427,7 @@ void sendXmidtEventToServer(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle
 			xmidtQDequeue();
 		}
 
-		ParodusPrint("B4 notif wrp_free_struct\n");
+		ParodusInfo("B4 notif wrp_free_struct\n");
 		if(notif_wrp_msg != NULL)
 		{
 			wrp_free_struct(notif_wrp_msg);
@@ -569,7 +570,7 @@ int checkInputParameters(rbusObject_t inParams)
 	rbusValue_t check = rbusObject_GetValue(inParams, "check");
 	if(check)
 	{
-		ParodusPrint("Rbus check method. Not proceeding to process this inparam\n");
+		ParodusInfo("Rbus check method. Not proceeding to process this inparam\n");
 		return 0;
 	}
 	return 1;
@@ -774,7 +775,7 @@ static rbusError_t sendDataHandler(rbusHandle_t handle, char const* methodName, 
 	char *transaction_uuid = NULL;
 	wrp_msg_t *wrpMsg= NULL;
 	ParodusInfo("methodHandler called: %s\n", methodName);
-	//printRBUSParams(inParams, INPARAMS_PATH);
+	printRBUSParams(inParams, INPARAMS_PATH);
 
 	if((methodName !=NULL) && (strcmp(methodName, XMIDT_SEND_METHOD) == 0))
 	{
@@ -793,7 +794,7 @@ static rbusError_t sendDataHandler(rbusHandle_t handle, char const* methodName, 
 		}
 		else
 		{
-			ParodusPrint("check method call received, ignoring input\n");
+			ParodusInfo("check method call received, ignoring input\n");
 		}
 	}
 	else
@@ -801,7 +802,7 @@ static rbusError_t sendDataHandler(rbusHandle_t handle, char const* methodName, 
 		ParodusError("Method %s received is not supported\n", methodName);
 		return RBUS_ERROR_BUS_ERROR;
 	}
-	ParodusPrint("send RBUS_ERROR_SUCCESS\n");
+	ParodusInfo("send RBUS_ERROR_SUCCESS\n");
 	return RBUS_ERROR_SUCCESS;
 }
 
