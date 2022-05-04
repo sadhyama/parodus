@@ -365,8 +365,16 @@ void sendXmidtEventToServer(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle
 		ParodusInfo("Encoded xmidt wrp msg, msg_len %lu\n", msg_len);
 		if(msg_len > 0)
 		{
-			ParodusInfo("sendUpstreamMsgToServer\n");
-			sendRetStatus = sendUpstreamMsgToServer(&msg_bytes, msg_len);
+			//To avoid parodus to try sending to server before cloud connection.
+			if(!get_parodus_init())
+			{
+				ParodusInfo("sendUpstreamMsgToServer\n");
+				sendRetStatus = sendUpstreamMsgToServer(&msg_bytes, msg_len);
+			}
+			else
+			{
+				ParodusInfo("Not sending event to server as cloud connection is not established during bootup\n");
+			}
 		}
 		else
 		{
