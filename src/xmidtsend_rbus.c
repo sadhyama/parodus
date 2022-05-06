@@ -338,15 +338,8 @@ void sendXmidtEventToServer(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle
 
 		if(msg->u.event.content_type != NULL)
 		{
-			if(strcmp(msg->u.event.content_type , "application/json") == 0)
-			{
-				notif_wrp_msg->u.event.content_type = strdup("application/json");
-				ParodusInfo("content_type is %s\n",notif_wrp_msg->u.event.content_type);
-			}
-			else
-			{
-				ParodusInfo("content_type is %s\n",msg->u.event.content_type);
-			}
+			notif_wrp_msg->u.event.content_type = msg->u.event.content_type;
+			ParodusInfo("Notify content_type is %s\n",notif_wrp_msg->u.event.content_type);
 		}
 
 		if(msg->u.event.payload != NULL)
@@ -694,9 +687,9 @@ void parseRbusInparamsToWrp(rbusObject_t inParams, char *trans_id, wrp_msg_t **e
 			contenttypeStr = (char *)rbusValue_GetString(contenttype, NULL);
 			if(contenttypeStr !=NULL)
 			{
-				ParodusPrint("contenttype value received is %s\n", contenttypeStr);
+				ParodusInfo("contenttype value received is %s\n", contenttypeStr);
 				msg->u.event.content_type = strdup(contenttypeStr);
-				ParodusPrint("msg->u.event.content_type is %s\n", msg->u.event.content_type);
+				ParodusInfo("msg->u.event.content_type is %s\n", msg->u.event.content_type);
 			}
 		}
 	}
