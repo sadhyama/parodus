@@ -42,6 +42,23 @@ typedef struct XmidtMsg__
 	struct XmidtMsg__ *next;
 } XmidtMsg;
 
+typedef struct XmidtSentMsg__
+{
+	wrp_msg_t *msg;
+	rbusMethodAsyncHandle_t asyncHandle;
+	int startTime;
+        int status;
+	struct XmidtSentMsg__ *next;
+} XmidtSentMsg;
+
+typedef struct CloudAck__
+{
+	char *transaction_id;
+	int rdr;
+	int qos;
+	struct CloudAck__ *next;
+} CloudAck;
+
 typedef enum
 {
     DELIVERED_SUCCESS = 0,
@@ -76,6 +93,10 @@ void xmidtQDequeue();
 bool highQosValueCheck(int qos);
 void waitTillConnectionIsUp();
 void printRBUSParams(rbusObject_t params, char* file_path);
+void addToXmidtSentMsgQ(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle);
+void addToCloudAckQ(char *transaction_id, int qos, int rdr);
+int processCloudAck(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle,char *transaction_id, int qos, int rdr);
+int checkCloudAckTimer(int startTime);
 #ifdef __cplusplus
 }
 #endif

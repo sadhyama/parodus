@@ -34,9 +34,21 @@ static int XmidtQsize = 0;
 
 XmidtMsg *XmidtMsgQ = NULL;
 
+XmidtSentMsg *XmidtSentMsgQ = NULL;
+
+CloudAck *CloudAckQ = NULL;
+
 pthread_mutex_t xmidt_mut=PTHREAD_MUTEX_INITIALIZER;
 
 pthread_cond_t xmidt_con=PTHREAD_COND_INITIALIZER;
+
+pthread_mutex_t xmidtsend_mut=PTHREAD_MUTEX_INITIALIZER;
+
+pthread_cond_t xmidtsend_con=PTHREAD_COND_INITIALIZER;
+
+pthread_mutex_t cloudack_mut=PTHREAD_MUTEX_INITIALIZER;
+
+pthread_cond_t cloudack_con=PTHREAD_COND_INITIALIZER;
 
 bool highQosValueCheck(int qos)
 {
@@ -422,9 +434,15 @@ void sendXmidtEventToServer(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle
 
 		if(sendRetStatus == 0)
 		{
-			errorMsg = strdup("send to server success");
+			/*errorMsg = strdup("send to server success");
 			createOutParamsandSendAck(msg, asyncHandle, errorMsg, DELIVERED_SUCCESS, RBUS_ERROR_SUCCESS);
-			xmidtQDequeue();
+			xmidtQDequeue();*/
+			if(highQosValueCheck(qos))
+			{
+				ParodusInfo("High Qos message, addToXmidtSentMsgQ\n");
+				addToXmidtSentMsgQ(msg, asyncHandle);
+				ParodusInfo("addToXmidtSentMsgQ done\n");
+			}
 		}
 
 		ParodusPrint("B4 notif wrp_free_struct\n");
@@ -850,4 +868,53 @@ void printRBUSParams(rbusObject_t params, char* file_path)
       {
            ParodusError("Params is NULL\n");
       }
+}
+
+/*
+ * @brief To handle cloud ack for the messages sent to server
+ */
+void addToXmidtSentMsgQ(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle)
+{
+	XmidtSentMsg *message;
+
+	ParodusPrint ("Add Xmidt Upstream message to sentQueue\n");
+	message = (XmidtSentMsg *)malloc(sizeof(XmidtSentMsg));
+
+	if(message)
+	{
+		message->msg = msg;
+		message->asyncHandle =asyncHandle;
+		message->startTime = 0; //TODO: calculate current time and add it
+		message->status = "pending";
+		message->next=NULL;
+		pthread_mutex_lock (&xmidtsend_mut);
+		//Producer adds the sent msg into queue
+		if(XmidtSentMsgQ == NULL)
+		{
+			XmidtSentMsgQ = message;
+
+			ParodusPrint("Producer added xmidt sentmessage\n");
+			pthread_cond_signal(&xmidtsend_con);
+			pthread_mutex_unlock (&xmidtsend_mut);
+			ParodusPrint("mutex unlock in xmidt sent producer\n");
+		}
+		else
+		{
+			XmidtSentMsg *temp = XmidtSentMsgQ;
+			while(temp->next)
+			{
+				temp = temp->next;
+			}
+			temp->next = message;
+			pthread_mutex_unlock (&xmidtsend_mut);
+		}
+	}
+	else
+	{
+		char * errorMsg = strdup("Unable to enqueue");
+		ParodusError("failure in allocation for xmidt sent message\n");
+		createOutParamsandSendAck(msg, asyncHandle, errorMsg , ENQUEUE_FAILURE, RBUS_ERROR_INVALID_RESPONSE_FROM_DESTINATION);
+		wrp_free_struct(msg);
+	}
+	return;
 }
