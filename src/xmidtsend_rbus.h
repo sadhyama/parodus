@@ -47,15 +47,15 @@ typedef struct XmidtSentMsg__
 	wrp_msg_t *msg;
 	rbusMethodAsyncHandle_t asyncHandle;
 	int startTime;
-        int status;
+        char * status;
 	struct XmidtSentMsg__ *next;
 } XmidtSentMsg;
 
 typedef struct CloudAck__
 {
 	char *transaction_id;
-	int rdr;
 	int qos;
+	int rdr;
 	struct CloudAck__ *next;
 } CloudAck;
 

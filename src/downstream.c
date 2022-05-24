@@ -27,6 +27,7 @@
 #include "partners_check.h"
 #include "ParodusInternal.h"
 #include "crud_interface.h"
+#include "xmidtsend_rbus.h"
 /*----------------------------------------------------------------------------*/
 /*                             Function Prototypes                            */
 /*----------------------------------------------------------------------------*/
@@ -235,6 +236,28 @@ void listenerOnMessage(void * msg, size_t msgSize)
                         }
                         free(resp_msg);
                     }
+		    //To handle cloud ack events received from server for the xmidt sent messages.
+		    if((WRP_MSG_TYPE__EVENT == msgType) && (ret >= 0))
+		    {
+			//Process cloud ack only when qos > 24
+			if(highQosValueCheck(message->u.event.qos))
+			{
+				if(message->u.event.transaction_uuid !=NULL)
+				{
+					ParodusInfo("Received cloud ack from server: transaction_uuid %s qos %d, rdr %d\n", message->u.event.transaction_uuid, message->u.event.qos, message->u.event.rdr);
+					addToCloudAckQ(message->u.event.transaction_uuid, message->u.event.qos, message->u.event.rdr);
+					ParodusInfo("Added to cloud ack Q\n");
+				}
+				else
+				{
+					ParodusError("cloud ack transaction id is NULL\n");
+				}
+			}
+			else
+			{
+				ParodusInfo("cloud ack received with low qos %d, ignoring it\n", message->u.event.qos);
+			}
+		    }
                     break;
                 }
 

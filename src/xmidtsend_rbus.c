@@ -877,7 +877,7 @@ void addToXmidtSentMsgQ(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle)
 {
 	XmidtSentMsg *message;
 
-	ParodusPrint ("Add Xmidt Upstream message to sentQueue\n");
+	ParodusInfo ("Add Xmidt Upstream message to sentQueue\n");
 	message = (XmidtSentMsg *)malloc(sizeof(XmidtSentMsg));
 
 	if(message)
@@ -893,10 +893,10 @@ void addToXmidtSentMsgQ(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle)
 		{
 			XmidtSentMsgQ = message;
 
-			ParodusPrint("Producer added xmidt sentmessage\n");
+			ParodusInfo("Producer added xmidt sentmessage\n");
 			pthread_cond_signal(&xmidtsend_con);
 			pthread_mutex_unlock (&xmidtsend_mut);
-			ParodusPrint("mutex unlock in xmidt sent producer\n");
+			ParodusInfo("mutex unlock in xmidt sent producer\n");
 		}
 		else
 		{
@@ -915,6 +915,52 @@ void addToXmidtSentMsgQ(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle)
 		ParodusError("failure in allocation for xmidt sent message\n");
 		createOutParamsandSendAck(msg, asyncHandle, errorMsg , ENQUEUE_FAILURE, RBUS_ERROR_INVALID_RESPONSE_FROM_DESTINATION);
 		wrp_free_struct(msg);
+	}
+	return;
+}
+
+/*
+ * @brief To store downstream cloud ack messages in a queue for further processing.
+ */
+void addToCloudAckQ(char *trans_id, int qos, int rdr)
+{
+	CloudAck *ackmsg;
+
+	ParodusInfo ("Add Xmidt Upstream message to sentQueue\n");
+	ackmsg = (CloudAck *)malloc(sizeof(CloudAck));
+
+	if(ackmsg)
+	{
+		ackmsg->transaction_id = trans_id;
+		ackmsg->qos = qos;
+		ackmsg->rdr =rdr;
+		ParodusInfo("ackmsg->transaction_id %s ackmsg->qos %d ackmsg->rdr %d\n", ackmsg->transaction_id,ackmsg->qos,ackmsg->rdr);
+		ackmsg->next=NULL;
+		pthread_mutex_lock (&cloudack_mut);
+		//Producer adds the sent msg into queue
+		if(CloudAckQ == NULL)
+		{
+			CloudAckQ = ackmsg;
+
+			ParodusInfo("Producer added cloud ack msg to Q\n");
+			pthread_cond_signal(&cloudack_con);
+			pthread_mutex_unlock (&cloudack_mut);
+			ParodusInfo("mutex unlock in cloud ack producer\n");
+		}
+		else
+		{
+			CloudAck *temp = CloudAckQ;
+			while(temp->next)
+			{
+				temp = temp->next;
+			}
+			temp->next = ackmsg;
+			pthread_mutex_unlock (&cloudack_mut);
+		}
+	}
+	else
+	{
+		ParodusError("failure in allocation for cloud ack\n");
 	}
 	return;
 }
