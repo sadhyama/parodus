@@ -30,6 +30,7 @@
 #include "config.h"
 
 static pthread_t processThreadId = 0;
+static pthread_t cloudackThreadId = 0;
 static int XmidtQsize = 0;
 
 XmidtMsg *XmidtMsgQ = NULL;
@@ -937,7 +938,7 @@ void addToCloudAckQ(char *trans_id, int qos, int rdr)
 
 	if(ackmsg)
 	{
-		ackmsg->transaction_id = trans_id;
+		ackmsg->transaction_id = strdup(trans_id);
 		ackmsg->qos = qos;
 		ackmsg->rdr =rdr;
 		ParodusInfo("ackmsg->transaction_id %s ackmsg->qos %d ackmsg->rdr %d\n", ackmsg->transaction_id,ackmsg->qos,ackmsg->rdr);
@@ -969,4 +970,100 @@ void addToCloudAckQ(char *trans_id, int qos, int rdr)
 		ParodusError("failure in allocation for cloud ack\n");
 	}
 	return;
+}
+
+//Consumer thread to process cloud ack.
+void processCloudAck()
+{
+	int err = 0;
+	err = pthread_create(&cloudackThreadId, NULL, cloudAckHandler, NULL);
+	if (err != 0)
+	{
+		ParodusError("Error creating processCloudAck thread :[%s]\n", strerror(err));
+	}
+	else
+	{
+		ParodusInfo("processCloudAck thread created Successfully\n");
+	}
+}
+
+//To handle downstream cloud ack and send callback to consumer component.
+void* cloudAckHandler()
+{
+	int rv = 0;
+	while(FOREVER())
+	{
+		pthread_mutex_lock (&cloudack_mut);
+		ParodusInfo("mutex lock in cloudack consumer thread\n");
+		if(CloudAckQ != NULL)
+		{
+			CloudAck *Data = CloudAckQ;
+			pthread_mutex_unlock (&cloudack_mut);
+			ParodusInfo("mutex unlock in cloudack consumer thread\n");
+			ParodusInfo("Data->transaction_id %s Data->qos %d Data->rdr %d\n", Data->transaction_id,Data->qos,Data->rdr);
+			rv = processCloudAckMsg(Data->transaction_id, Data->qos, Data->rdr);
+			if(!rv)
+			{
+				ParodusInfo("Data->msg wrp free\n");
+				wrp_free_struct(Data->msg);
+			}
+			else
+			{
+				free(Data->msg);
+			}
+			free(Data);
+			Data = NULL;
+			ParodusInfo("processCloudAckMsg done\n");
+		}
+		else
+		{
+			if (g_shutdown)
+			{
+				pthread_mutex_unlock (&cloudack_mut);
+				break;
+			}
+			ParodusInfo("Before cond wait in cloudack consumer thread\n");
+			pthread_cond_wait(&cloudack_con, &cloudack_mut);
+			pthread_mutex_unlock (&cloudack_mut);
+			ParodusInfo("mutex unlock in cloudack thread after cond wait\n");
+		}
+	}
+	return NULL;
+}
+
+//Check cloud ack and send rbus callback based on transaction id of xmidt send messages.
+int processCloudAckMsg(char *trans_id, int qos, int rdr)
+{
+	int isMatch = 0;
+	wrp_msg_t * msg = NULL;
+	rbusMethodAsyncHandle_t asyncHandle;
+	ParodusInfo("In processCloudAckMsg\n");
+	if(transaction_id == NULL)
+	{
+		ParodusError("transaction_id is NULL, failed to process cloud ack\n");
+		return 0;
+	}
+
+	isMatch = checkTransactionID(trans_id, &msg, &asyncHandle);
+	if(isMatch)
+	{
+		ParodusInfo("transaction_id is matching, send callback\n");
+		char * errorMsg = strdup("Delivered (success)");
+		createOutParamsandSendAck(msg, asyncHandle, errorMsg, DELIVERED_SUCCESS, RBUS_ERROR_SUCCESS);
+		//wrp_free_struct(msg); TODO: handle deQueue after cloud ack processing.
+		return 1;
+	}
+	else
+	{
+		ParodusError("No matching transaction id found\n");
+	}
+	return 0;
+}
+
+//Traverse through XmidtSendMsgQ and get msg based on matching cloud ack transaction id
+int checkTransactionID(char *trans_id, wrp_msg_t **msg, rbusMethodAsyncHandle_t *asyncHandle)
+{
+	//TODO: Need to get msg from XmidtSendMsgQ
+	return 0;
+
 }

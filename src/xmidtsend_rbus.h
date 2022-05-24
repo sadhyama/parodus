@@ -95,7 +95,10 @@ void waitTillConnectionIsUp();
 void printRBUSParams(rbusObject_t params, char* file_path);
 void addToXmidtSentMsgQ(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle);
 void addToCloudAckQ(char *transaction_id, int qos, int rdr);
-int processCloudAck(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle,char *transaction_id, int qos, int rdr);
+void processCloudAck();
+void* cloudAckHandler();
+int processCloudAckMsg(char *trans_id, int qos, int rdr);
+int checkTransactionID(char *trans_id, wrp_msg_t **msg, rbusMethodAsyncHandle_t *asyncHandle);
 int checkCloudAckTimer(int startTime);
 #ifdef __cplusplus
 }
