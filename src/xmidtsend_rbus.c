@@ -434,18 +434,24 @@ void sendXmidtEventToServer(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle
 
 		if(sendRetStatus == 0)
 		{
-			/*errorMsg = strdup("send to server success");
-			createOutParamsandSendAck(msg, asyncHandle, errorMsg, DELIVERED_SUCCESS, RBUS_ERROR_SUCCESS);
-			xmidtQDequeue();*/
 			if(highQosValueCheck(qos))
 			{
 				ParodusInfo("High Qos message, addToXmidtSentMsgQ\n");
 				addToXmidtSentMsgQ(msg, asyncHandle);
-				ParodusInfo("addToXmidtSentMsgQ done\n");
+				ParodusInfo("addToXmidtSentMsgQ done, proceed to xmidtQDequeue\n");
+				xmidtQDequeue();
+				ParodusInfo("xmidtQDequeue done for high Qos msg\n");
+			}
+			else
+			{
+				ParodusInfo("Low qos event, send success callback and dequeue\n");
+				errorMsg = strdup("send to server success");
+				createOutParamsandSendAck(msg, asyncHandle, errorMsg, DELIVERED_SUCCESS, RBUS_ERROR_SUCCESS);
+				xmidtQDequeue();
 			}
 		}
 
-		ParodusPrint("B4 notif wrp_free_struct\n");
+		ParodusInfo("B4 notif wrp_free_struct\n");
 		if(notif_wrp_msg != NULL)
 		{
 			wrp_free_struct(notif_wrp_msg);
