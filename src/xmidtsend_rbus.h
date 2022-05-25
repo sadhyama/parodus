@@ -98,8 +98,10 @@ void addToCloudAckQ(char *transaction_id, int qos, int rdr);
 void processCloudAck();
 void* cloudAckHandler();
 int processCloudAckMsg(char *trans_id, int qos, int rdr);
-int checkTransactionID(char *trans_id, wrp_msg_t **msg, rbusMethodAsyncHandle_t *asyncHandle);
-int checkCloudAckTimer(int startTime);
+int checkCloudAckTimer(int startTime); //TODO: 7s timeout handling and send callback
+XmidtSentMsg* get_global_sendnode(void);
+void release_global_sendnode (void);
+void xmidtSendMsgQDequeue();
 #ifdef __cplusplus
 }
 #endif

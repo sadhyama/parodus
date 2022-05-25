@@ -65,6 +65,17 @@ bool highQosValueCheck(int qos)
 
 	return false;
 }
+
+XmidtSentMsg* get_global_sendnode(void)
+{
+    pthread_mutex_lock (&xmidtsend_mut);
+    return XmidtSentMsgQ;
+}
+
+void release_global_sendnode (void)
+{
+    pthread_mutex_unlock (&xmidtsend_mut);
+}
 /*
  * @brief To handle xmidt rbus messages received from various components.
  */
@@ -998,21 +1009,28 @@ void* cloudAckHandler()
 		if(CloudAckQ != NULL)
 		{
 			CloudAck *Data = CloudAckQ;
+			CloudAckQ = CloudAckQ->next;
 			pthread_mutex_unlock (&cloudack_mut);
 			ParodusInfo("mutex unlock in cloudack consumer thread\n");
 			ParodusInfo("Data->transaction_id %s Data->qos %d Data->rdr %d\n", Data->transaction_id,Data->qos,Data->rdr);
 			rv = processCloudAckMsg(Data->transaction_id, Data->qos, Data->rdr);
-			if(!rv)
+			if(rv)
 			{
-				ParodusInfo("Data->msg wrp free\n");
-				wrp_free_struct(Data->msg);
+				ParodusInfo("processCloudAckMsg success\n");
 			}
 			else
 			{
-				free(Data->msg);
+				ParodusError("processCloudAckMsg failed\n");
 			}
-			free(Data);
-			Data = NULL;
+			ParodusInfo("Data->transaction_id free\n");
+			if((Data !=NULL) && (Data->transaction_id !=NULL))
+			{
+				free(Data->transaction_id);
+				Data->transaction_id = NULL;
+				ParodusInfo("Data free\n");
+				free(Data);
+				Data = NULL;
+			}
 			ParodusInfo("processCloudAckMsg done\n");
 		}
 		else
@@ -1032,38 +1050,71 @@ void* cloudAckHandler()
 }
 
 //Check cloud ack and send rbus callback based on transaction id of xmidt send messages.
-int processCloudAckMsg(char *trans_id, int qos, int rdr)
+int processCloudAckMsg(char *cloud_transID, int qos, int rdr)
 {
-	int isMatch = 0;
-	wrp_msg_t * msg = NULL;
-	rbusMethodAsyncHandle_t asyncHandle;
-	ParodusInfo("In processCloudAckMsg\n");
-	if(transaction_id == NULL)
+	if(cloud_transID == NULL)
 	{
-		ParodusError("transaction_id is NULL, failed to process cloud ack\n");
+		ParodusError("cloud_transID is NULL, failed to process cloud ack\n");
 		return 0;
 	}
+	ParodusInfo("processCloudAckMsg cloud_transID %s, qos %d, rdr %d\n", cloud_transID, qos, rdr);
 
-	isMatch = checkTransactionID(trans_id, &msg, &asyncHandle);
-	if(isMatch)
+	XmidtSentMsg *temp = NULL;
+	temp = get_global_sendnode();
+	wrp_msg_t *sentMsg = NULL;
+	char *sentMsgTransID = NULL;
+	char * errorMsg = NULL;
+
+	while (NULL != temp)
 	{
-		ParodusInfo("transaction_id is matching, send callback\n");
-		char * errorMsg = strdup("Delivered (success)");
-		createOutParamsandSendAck(msg, asyncHandle, errorMsg, DELIVERED_SUCCESS, RBUS_ERROR_SUCCESS);
-		//wrp_free_struct(msg); TODO: handle deQueue after cloud ack processing.
-		return 1;
+		sentMsg = temp->msg;
+
+		if(sentMsg !=NULL)
+		{
+			sentMsgTransID = sentMsg->u.event.transaction_uuid;
+			ParodusInfo("sentMsgTransID is %s\n",sentMsgTransID);
+			if(sentMsgTransID !=NULL)
+			{
+				if( strcmp(cloud_transID, sentMsgTransID) == 0)
+				{
+					ParodusInfo("transaction_id %s is matching, send callback\n", cloud_transID);
+					errorMsg = strdup("Delivered (success)");
+					createOutParamsandSendAck(sentMsg, temp->asyncHandle, errorMsg, DELIVERED_SUCCESS, rdr);
+					wrp_free_struct(sentMsg);
+					release_global_sendnode();
+					xmidtSendMsgQDequeue();
+					return 1;
+				}
+			}
+			else
+			{
+				ParodusError("Xmdit sentMsgTransID is NULL\n");
+			}
+		}
+		else
+		{
+			ParodusError("nodeMsg is NULL\n");
+		}
+		ParodusInfo("checking the next item in the list\n");
+		temp= temp->next;
 	}
-	else
-	{
-		ParodusError("No matching transaction id found\n");
-	}
+	ParodusInfo("B4 release_global_sendnode\n");
+	release_global_sendnode();
+	ParodusInfo("checkTransIDAndSendCallback done\n");
 	return 0;
 }
 
-//Traverse through XmidtSendMsgQ and get msg based on matching cloud ack transaction id
-int checkTransactionID(char *trans_id, wrp_msg_t **msg, rbusMethodAsyncHandle_t *asyncHandle)
+//To remove an event from XmidtSentMsg Queue
+void xmidtSendMsgQDequeue()
 {
-	//TODO: Need to get msg from XmidtSendMsgQ
-	return 0;
-
+	pthread_mutex_lock (&xmidtsend_mut);
+	if(XmidtSentMsgQ != NULL)
+	{
+		XmidtSentMsgQ = XmidtSentMsgQ->next;
+	}
+	else
+	{
+		ParodusError("XmidtSentMsgQ is NULL\n");
+	}
+	pthread_mutex_unlock (&xmidtsend_mut);
 }
