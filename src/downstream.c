@@ -430,25 +430,21 @@ static void createNewMsgForCloudACK(wrp_msg_t *message, wrp_msg_t **eventMessage
         msg->msg_type = WRP_MSG_TYPE__EVENT;
         if(message->u.event.source != NULL)
         {
-            ParodusInfo("message->u.event.source = %s\n",message->u.event.source);
             msg->u.event.source = strdup("event:/profile-notify/MyProfile1");
         }
 
         if(message->u.event.dest!= NULL)
         {
-            ParodusInfo("message->u.event.dest = %s\n",message->u.event.dest);
             msg->u.event.dest = strdup("mac:889e6863239e/telemetry2");
         }
 
         if(message->u.event.transaction_uuid != NULL)
         {
-            ParodusInfo("message->u.event.transaction_uuid = %s\n",message->u.event.transaction_uuid);
             msg->u.event.transaction_uuid = strdup("8d72d4c2-1f59-4420-a736-3946083d529a");
         }
 
         if(message->u.event.content_type != NULL)
         {
-            ParodusInfo("message->u.event.content_type : %s\n",message->u.event.content_type);
             msg->u.event.content_type = strdup("application/json");
         }
         msg->u.event.rdr = 0;

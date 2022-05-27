@@ -448,6 +448,8 @@ void sendXmidtEventToServer(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle
 		{
 			if(highQosValueCheck(qos))
 			{
+				ParodusInfo("Start processCloudAck consumer\n");
+				processCloudAck();
 				ParodusInfo("High Qos message, addToXmidtSentMsgQ\n");
 				addToXmidtSentMsgQ(msg, asyncHandle);
 				ParodusInfo("addToXmidtSentMsgQ done, proceed to xmidtQDequeue\n");
@@ -819,7 +821,8 @@ static rbusError_t sendDataHandler(rbusHandle_t handle, char const* methodName, 
 		if(inStatus)
 		{
 			//generate transaction id to create outParams and send ack
-			transaction_uuid = generate_transaction_uuid();
+			//transaction_uuid = generate_transaction_uuid(); Testing
+			transaction_uuid = strdup("8d72d4c2-1f59-4420-a736-3946083d529a");
 			ParodusInfo("xmidt transaction_uuid generated is %s\n", transaction_uuid);
 			parseRbusInparamsToWrp(inParams, transaction_uuid, &wrpMsg);
 
@@ -944,7 +947,7 @@ void addToCloudAckQ(char *trans_id, int qos, int rdr)
 {
 	CloudAck *ackmsg;
 
-	ParodusInfo ("Add Xmidt Upstream message to sentQueue\n");
+	ParodusInfo ("Add Xmidt downstream message to CloudAck\n");
 	ackmsg = (CloudAck *)malloc(sizeof(CloudAck));
 
 	if(ackmsg)
