@@ -239,7 +239,7 @@ void listenerOnMessage(void * msg, size_t msgSize)
                         free(resp_msg);
                     }
 		    //To handle cloud ack events received from server for the xmidt sent messages.
-		    if(test)
+		    if(test == 1 || test == 3)
 		    {
 			wrp_msg_t *eventMsg= NULL;
 			ParodusInfo("Create downstream event Msg with cloud ack\n");
@@ -284,7 +284,8 @@ void listenerOnMessage(void * msg, size_t msgSize)
 			{
 				ParodusInfo("cloud ack received with low qos %d, ignoring it\n", eventMsg->u.event.qos);
 			}
-			test = 0;
+			test++;
+			ParodusInfo("test is %d\n", test);
 		    }
 		    }
                     break;
@@ -433,7 +434,7 @@ static void createNewMsgForCloudACK(wrp_msg_t *message, wrp_msg_t **eventMessage
             msg->u.event.source = strdup("event:/profile-notify/MyProfile1");
         }
 
-        if(message->u.event.dest!= NULL)
+        if(message->u.event.dest != NULL)
         {
             msg->u.event.dest = strdup("mac:889e6863239e/telemetry2");
         }
@@ -449,7 +450,7 @@ static void createNewMsgForCloudACK(wrp_msg_t *message, wrp_msg_t **eventMessage
         }
         msg->u.event.rdr = 0;
 	msg->u.event.qos = 50;
-	ParodusInfo("message->u.event.rdr = %d message->u.event.qos = %d\n",message->u.event.rdr, message->u.event.qos);
+	ParodusInfo("msg->u.event.rdr = %d msg->u.event.qos = %d\n",msg->u.event.rdr, msg->u.event.qos);
         *eventMessage = msg;
     }
     ParodusInfo("createNewMsgForCloudACK done\n");
