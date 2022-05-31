@@ -531,13 +531,34 @@ int createSendMsgQData(wrp_msg_t *message, rbusMethodAsyncHandle_t asyncHandle, 
 	{
 		memset(msg, 0, sizeof(wrp_msg_t));
 
-		//copy Xmidt message
-		ParodusInfo("wrp msg memcpy\n");
-		memcpy(msg, message, sizeof(wrp_msg_t));
+		ParodusInfo("wrp msg copy\n");
+		//memcpy(msg, message, sizeof(wrp_msg_t));
+		if(message->u.event.source != NULL)
+		{
+			ParodusInfo("message->u.event.source = %s\n",message->u.event.source);
+			msg->u.event.source = strdup(message->u.event.source);
+		}
+
+		if(message->u.event.dest!= NULL)
+		{
+			ParodusInfo("message->u.event.dest = %s\n",message->u.event.dest);
+			msg->u.event.dest = strdup(message->u.event.dest);
+		}
+
+		if(message->u.event.transaction_uuid != NULL)
+		{
+			ParodusInfo("message->u.event.transaction_uuid = %s\n",message->u.event.transaction_uuid);
+			msg->u.event.transaction_uuid = strdup(message->u.event.transaction_uuid);
+		}
+		if(message->u.event.content_type != NULL)
+		{
+			ParodusInfo("message->u.event.content_type : %s\n",message->u.event.content_type);
+			msg->u.event.content_type = strdup(message->u.event.content_type);
+		}
+
 		*sendMsg = msg;
 		ParodusInfo("msg->u.event.source = %s msg->u.event.dest = %s, msg->u.event.transaction_uuid = %s, sendMsg->u.event.content_type = %s\n",msg->u.event.source, msg->u.event.dest, msg->u.event.transaction_uuid, msg->u.event.content_type);
 
-		//copy rbus asynchandle
 		rbusMethodAsyncHandle_t handle;
 		ParodusInfo("asynchandle memcpy\n");
 		memcpy(&handle, asyncHandle, sizeof(asyncHandle));
@@ -566,7 +587,7 @@ void createOutParamsandSendAck(wrp_msg_t *msg, rbusMethodAsyncHandle_t asyncHand
 	rbusObject_SetValue(outParams, "msg_type", value);
 	rbusValue_Release(value);
 
-	ParodusPrint("statuscode %d errorMsg %s\n", statuscode, errorMsg);
+	ParodusInfo("statuscode %d errorMsg %s\n", statuscode, errorMsg);
 	rbusValue_Init(&value);
 	rbusValue_SetInt32(value, statuscode);
 	rbusObject_SetValue(outParams, "status", value);
@@ -585,7 +606,7 @@ void createOutParamsandSendAck(wrp_msg_t *msg, rbusMethodAsyncHandle_t asyncHand
 	{
 		if(msg->u.event.source !=NULL)
 		{
-			ParodusPrint("msg->u.event.source is %s\n", msg->u.event.source);
+			ParodusInfo("msg->u.event.source is %s\n", msg->u.event.source);
 			rbusValue_Init(&value);
 			rbusValue_SetString(value, msg->u.event.source);
 			rbusObject_SetValue(outParams, "source", value);
@@ -594,6 +615,7 @@ void createOutParamsandSendAck(wrp_msg_t *msg, rbusMethodAsyncHandle_t asyncHand
 
 		if(msg->u.event.dest !=NULL)
 		{
+			ParodusInfo("msg->u.event.dest is %s\n", msg->u.event.dest);
 			rbusValue_Init(&value);
 			rbusValue_SetString(value, msg->u.event.dest);
 			rbusObject_SetValue(outParams, "dest", value);
@@ -602,6 +624,7 @@ void createOutParamsandSendAck(wrp_msg_t *msg, rbusMethodAsyncHandle_t asyncHand
 
 		if(msg->u.event.content_type !=NULL)
 		{
+			ParodusInfo("msg->u.event.content_type is %s\n", msg->u.event.content_type);
 			rbusValue_Init(&value);
 			rbusValue_SetString(value, msg->u.event.content_type);
 			rbusObject_SetValue(outParams, "content_type", value);
@@ -610,7 +633,7 @@ void createOutParamsandSendAck(wrp_msg_t *msg, rbusMethodAsyncHandle_t asyncHand
 
 		rbusValue_Init(&value);
 		snprintf(qosstring, sizeof(qosstring), "%d", msg->u.event.qos);
-		ParodusPrint("qosstring is %s\n", qosstring);
+		ParodusInfo("qosstring is %s\n", qosstring);
 		rbusValue_SetString(value, qosstring);
 		rbusObject_SetValue(outParams, "qos", value);
 		rbusValue_Release(value);
@@ -621,7 +644,7 @@ void createOutParamsandSendAck(wrp_msg_t *msg, rbusMethodAsyncHandle_t asyncHand
 			rbusValue_SetString(value, msg->u.event.transaction_uuid);
 			rbusObject_SetValue(outParams, "transaction_uuid", value);
 			rbusValue_Release(value);
-			ParodusPrint("outParams msg->u.event.transaction_uuid %s\n", msg->u.event.transaction_uuid);
+			ParodusInfo("outParams msg->u.event.transaction_uuid %s\n", msg->u.event.transaction_uuid);
 		}
 	}
 
@@ -970,7 +993,7 @@ void addToXmidtSentMsgQ(wrp_msg_t * msg, rbusMethodAsyncHandle_t asyncHandle)
 			XmidtSentMsgQ = message;
 
 			ParodusInfo("Producer added xmidt sentmessage\n");
-			pthread_cond_signal(&xmidtsend_con);
+			//pthread_cond_signal(&xmidtsend_con);
 			pthread_mutex_unlock (&xmidtsend_mut);
 			ParodusInfo("mutex unlock in xmidt sent producer\n");
 		}
@@ -1129,6 +1152,7 @@ int processCloudAckMsg(char *cloud_transID, int qos, int rdr)
 
 		if(sentMsg !=NULL)
 		{
+			ParodusInfo("sentMsg->u.event.transaction_uuid is %s temp->startTime %d temp->status %s\n",sentMsg->u.event.transaction_uuid, temp->startTime, temp->status);
 			sentMsgTransID = sentMsg->u.event.transaction_uuid;
 			ParodusInfo("sentMsgTransID is %s\n",sentMsgTransID);
 			if(sentMsgTransID !=NULL)
