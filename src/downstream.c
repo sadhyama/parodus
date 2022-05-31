@@ -33,6 +33,7 @@
 /*----------------------------------------------------------------------------*/
 static void createNewMsgForCRUD(wrp_msg_t *message, wrp_msg_t **crudMessage );
 static void createNewMsgForCloudACK(wrp_msg_t *message, wrp_msg_t **eventMessage ); //Test purpose.
+static int test = 0;
 /*----------------------------------------------------------------------------*/
 /*                             External Functions                             */
 /*----------------------------------------------------------------------------*/
@@ -61,7 +62,6 @@ void listenerOnMessage(void * msg, size_t msgSize)
     void *resp_bytes;
     cJSON *response = NULL;
     reg_list_item_t *temp = NULL;
-    int test = 0;
     recivedMsg =  (const char *) msg;
 
     ParodusInfo("Received msg from server\n");
