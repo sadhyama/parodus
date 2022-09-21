@@ -122,7 +122,7 @@ void decrement_XmidtQsize()
 int checkCloudConn()
 {
 	int ret = 1;
-	if (!cloud_status_is_online ())
+	if (cloud_status_is_online ()) //conn down test
 	{
 		ParodusInfo("cloud status is not online, wait till connection up\n");
 
