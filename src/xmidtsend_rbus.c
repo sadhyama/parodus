@@ -35,7 +35,7 @@
 static pthread_t processThreadId = 0;
 static unsigned int XmidtQsize = 0;
 XmidtMsg *XmidtMsgQ = NULL;
-
+int test = 0;
 CloudAck *g_cloudackHead = NULL;
 
 pthread_mutex_t xmidt_mut=PTHREAD_MUTEX_INITIALIZER;
@@ -122,7 +122,7 @@ void decrement_XmidtQsize()
 int checkCloudConn()
 {
 	int ret = 1;
-	if (cloud_status_is_online ()) //conn down test
+	if (test == 4) //conn down test
 	{
 		ParodusInfo("cloud status is not online, wait till connection up\n");
 
@@ -136,6 +136,9 @@ int checkCloudConn()
 			ts.tv_sec += EXPIRY_CHECK_TIME;
 			ParodusPrint("checkCloudConn timeout at %lld\n", (long long) ts.tv_sec);
 			rv = pthread_cond_timedwait(get_global_cloud_status_cond(), get_global_cloud_status_mut(), &ts);
+			ParodusInfo("test is %d\n", test);
+			//if(test == 10)
+			//	rv = 0;
 			if (rv == ETIMEDOUT)
 			{
 				ParodusInfo("Timedout. Cloud connection is down for %d minutes, check msg expiry\n", (EXPIRY_CHECK_TIME/60));
@@ -170,7 +173,6 @@ int xmidtQOptmize()
 
 	XmidtMsg *temp = NULL;
 	temp = get_global_xmidthead();
-
 	while(temp != NULL)
 	{
 		getCurrentTime(&ts);
@@ -215,7 +217,7 @@ int xmidtQOptmize()
 				if(get_XmidtQsize() > 0 && get_XmidtQsize() == get_parodus_cfg()->max_queue_size)
 				{
 					ParodusInfo("Max queue size reached, delete low qos %d transid %s\n", tempMsg->u.event.qos, tempMsg->u.event.transaction_uuid);
-					del = 1;
+					del = 2;
 				}
 			}
 		}
@@ -229,9 +231,18 @@ int xmidtQOptmize()
 			ParodusPrint("msg expired, updateXmidtState to DELETE\n");
 			updateXmidtState(temp, DELETE);
 			//rbus callback to caller
-			mapXmidtStatusToStatusMessage(MSG_EXPIRED, &errorMsg);
-			ParodusPrint("statusMsg is %s\n",errorMsg);
-			createOutParamsandSendAck(temp->msg, temp->asyncHandle, errorMsg, MSG_EXPIRED, RBUS_ERROR_INVALID_RESPONSE_FROM_DESTINATION);
+			if(del == 1)
+			{
+				mapXmidtStatusToStatusMessage(MSG_EXPIRED, &errorMsg);
+				ParodusPrint("statusMsg is %s\n",errorMsg);
+				createOutParamsandSendAck(temp->msg, temp->asyncHandle, errorMsg, MSG_EXPIRED, RBUS_ERROR_INVALID_RESPONSE_FROM_DESTINATION);
+			}
+			else if(del == 2)
+			{
+				mapXmidtStatusToStatusMessage(QUEUE_OPTIMIZED, &errorMsg);
+				ParodusPrint("statusMsg is %s\n",errorMsg);
+				createOutParamsandSendAck(temp->msg, temp->asyncHandle, errorMsg, QUEUE_OPTIMIZED, RBUS_ERROR_INVALID_RESPONSE_FROM_DESTINATION);
+			}
 			status = deleteFromXmidtQ(&next_node);
 			temp = next_node;
 			if(status)
@@ -1157,7 +1168,7 @@ static rbusError_t sendDataHandler(rbusHandle_t handle, char const* methodName, 
 			transaction_uuid = generate_transaction_uuid();
 			ParodusInfo("xmidt transaction_uuid generated is %s\n", transaction_uuid);
 			parseRbusInparamsToWrp(inParams, transaction_uuid, &wrpMsg);
-
+			test++;
 			//xmidt send producer
 			addToXmidtUpstreamQ(wrpMsg, asyncHandle);
 			ParodusPrint("sendDataHandler returned %d\n", RBUS_ERROR_ASYNC_RESPONSE);
