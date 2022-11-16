@@ -425,6 +425,22 @@ void* processXmidtUpstreamMsg()
 					}
 					else
 					{
+					    FILE *fp;
+					    char *errorMsg = NULL;
+					    fp = fopen("/tmp/ignore_cloudack", "r");
+					    if (fp != NULL)
+					    {
+						fclose(fp);
+						ParodusInfo("File /tmp/ignore_cloudack is available, ignoring cloud ack and retry.\n");
+						mapXmidtStatusToStatusMessage(DELIVERED_SUCCESS, &errorMsg);
+				                ParodusPrint("statusMsg is %s\n",errorMsg);
+						createOutParamsandSendAck(Data->msg, Data->asyncHandle, errorMsg, DELIVERED_SUCCESS, NULL, RBUS_ERROR_SUCCESS);
+						ParodusInfo("set xmidt msg to DELETE state as cloud ack is ignored\n");
+						updateXmidtState(Data, DELETE);
+					    }
+					    else
+					    {
+						ParodusInfo("File /tmp/ignore_cloudack is not available, proceed to retry.\n");
 						getCurrentTime(&tms);
 						currTime = (long long)tms.tv_sec;
 						long long timeout_secs = (Data->sentTime) + CLOUD_ACK_TIMEOUT_SEC;
@@ -463,6 +479,7 @@ void* processXmidtUpstreamMsg()
 								}
 							}
 						}
+					    }
 					}
 					break;
 				case DELETE:
