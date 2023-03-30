@@ -735,7 +735,13 @@ int createNopollConnection(noPollCtx *ctx, server_list_t *server_list)
   if(ctx == NULL) {
         return nopoll_false;
   }
-
+	ParodusInfo("check the interface before connect\n");
+	if(strcmp(getWebpaInterface() , "brRWAN") == 0)
+	{
+		ParodusInfo("New interface is %s, wait for 5mins for parodus reconnection\n", getWebpaInterface());
+		sleep(300);
+		ParodusInfo("sleep of 5mins done, proceed to connect\n");
+	}
 	ParodusPrint("BootTime In sec: %d\n", get_parodus_cfg()->boot_time);
 	ParodusInfo("Received reboot_reason as:%s\n", get_parodus_cfg()->hw_last_reboot_reason);
 	ParodusInfo("Received reconnect_reason as:%s\n", reconnect_reason);
