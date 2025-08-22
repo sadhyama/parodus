@@ -24,6 +24,7 @@
 #ifndef _CONFIG_H_ 
 #define _CONFIG_H_
 
+#include <pthread.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -75,7 +76,7 @@ typedef struct
     char hw_serial_number[64];
     char hw_manufacturer[64];
     char hw_mac[64];
-    char hw_last_reboot_reason[64];
+    char hw_last_reboot_reason[128];
     char fw_name[64];
     unsigned int boot_time;
     unsigned int webpa_ping_timeout;
@@ -87,6 +88,9 @@ typedef struct
     char webpa_uuid[64];
     unsigned int flags;
     char local_url[124];
+#ifdef ENABLE_WEBCFGBIN
+    unsigned int max_queue_size;
+#endif    
     char partner_id[64];
 #ifdef ENABLE_SESHAT
     char seshat_url[128];
@@ -100,6 +104,9 @@ typedef struct
     char token_acquisition_script[64];
     char token_read_script[64];
     char *client_cert_path;
+    char *ssl_engine;
+    char *ssl_cert_type;
+    char *ssl_reference_name;
     char *token_server_url;
     char *connection_health_file;
     char *close_reason_file;
@@ -109,6 +116,9 @@ typedef struct
 	char *cloud_status;
 	char *cloud_disconnect;
 	unsigned int boot_retry_wait;
+#ifdef FEATURE_DNS_QUERY
+    char *record_jwt_file;
+#endif
 } ParodusCfg;
 
 #define FLAGS_IPV6_ONLY (1 << 0)
@@ -131,7 +141,7 @@ void loadParodusCfg(ParodusCfg * config,ParodusCfg *cfg);
 *    or -1 if error
 */ 
 int parseCommandLine(int argc,char **argv,ParodusCfg * cfg);
-
+void free_cfg(ParodusCfg *cfg);
 void setDefaultValuesToCfg(ParodusCfg *cfg); 
 // Accessor for the global config structure.
 ParodusCfg *get_parodus_cfg(void);
@@ -139,6 +149,10 @@ void set_parodus_cfg(ParodusCfg *);
 char *get_token_application(void) ;
 void set_cloud_disconnect_reason(ParodusCfg *cfg, char *disconn_reason);
 void reset_cloud_disconnect_reason(ParodusCfg *cfg);
+char *getWebpaInterface(void);
+void set_cloud_status(char *status);
+char *get_cloud_status(void);
+int get_parodus_init();
 /**
  * parse a webpa url. Extract the server address, the port
  * and return whether it's secure or not

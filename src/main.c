@@ -24,7 +24,11 @@
 #include "parodus_log.h"
 #include <curl/curl.h>
 #ifdef INCLUDE_BREAKPAD
+#ifndef DEVICE_CAMERA
 #include "breakpad_wrapper.h"
+#else
+#include "breakpadwrap.h"
+#endif  //DEVICE_CAMERA
 #endif
 #include "signal.h"
 #include "privilege.h"
@@ -42,7 +46,7 @@ typedef    void    Sigfunc(int);
 /*----------------------------------------------------------------------------*/
 /*                            File Scoped Variables                           */
 /*----------------------------------------------------------------------------*/
-/* none */
+int numLoops;
 
 /*----------------------------------------------------------------------------*/
 /*                             Function Prototypes                            */
@@ -87,8 +91,17 @@ int main( int argc, char **argv)
 	signal(SIGHUP, sig_handler);   
 	signal(SIGALRM, sig_handler);
 #ifdef INCLUDE_BREAKPAD
+#ifndef DEVICE_CAMERA
     /* breakpad handles the signals SIGSEGV, SIGBUS, SIGFPE, and SIGILL */
     breakpad_ExceptionHandler();
+#else
+    /* breakpad handles the signals SIGSEGV, SIGBUS, SIGFPE, and SIGILL */
+    BreakPadWrapExceptionHandler eh;
+    eh = newBreakPadWrapExceptionHandler();
+    if(NULL != eh) {
+        ParodusInfo("Breakpad Initialized\n");
+    }
+#endif //DEVICE_CAMERA
 #else
 	signal(SIGSEGV, sig_handler);
 	signal(SIGBUS, sig_handler);
@@ -106,6 +119,11 @@ int main( int argc, char **argv)
     
     ParodusInfo("********** Starting component: Parodus **********\n "); 
     drop_root_privilege();
+    #ifdef ENABLE_WEBCFGBIN
+    registerRbusLogger();
+    subscribeRBUSevent();
+    regXmidtSendDataMethod();
+    #endif
     setDefaultValuesToCfg(cfg);
     if (0 != parseCommandLine(argc,argv,cfg)) {
 		abort();
@@ -113,7 +131,7 @@ int main( int argc, char **argv)
     curl_global_init(CURL_GLOBAL_DEFAULT);
      
     createSocketConnection( NULL);
-    
+    free_cfg(cfg);
     return 0;
 }
 

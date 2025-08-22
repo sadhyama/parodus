@@ -32,9 +32,6 @@
 #include "../src/connection.h"
 #include "../src/close_retry.h"
 
-bool LastReasonStatus;
-pthread_mutex_t close_mut;
-
 char *get_global_reconnect_reason()
 {
     return "parodus_stopping";
@@ -1533,7 +1530,7 @@ void test_retrieveObject_cloud_status()
 	ret = retrieveObject(reqMsg, &respMsg);
 	assert_int_equal (respMsg->u.crud.status, 200);
 	assert_int_equal (ret, 0);
-	assert_string_equal(get_parodus_cfg()->cloud_status, CLOUD_STATUS_ONLINE);
+	assert_string_equal(get_cloud_status(), CLOUD_STATUS_ONLINE);
 	assert_int_equal (respMsg->u.crud.payload_size, 25);
 
 	fp = fopen(cfg.crud_config_file, "r");

@@ -62,10 +62,8 @@ extern int keep_trying_to_connect (create_connection_ctx_t *ctx,
 /*                            File Scoped Variables                           */
 /*----------------------------------------------------------------------------*/
 
-bool close_retry;
 bool LastReasonStatus;
 bool interface_down_event = false;
-pthread_mutex_t close_mut; 
 pthread_mutex_t interface_down_mut=PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t interface_down_con=PTHREAD_COND_INITIALIZER;
 
@@ -121,6 +119,11 @@ int readFromFile(const char *file_name, char **data)
 	UNUSED(file_name);
 	*data = strdup ("parodus_stopping");
 	return 1;
+}
+
+void packMetaData()
+{
+  return;
 }
 
 noPollConn * nopoll_conn_new_opts (noPollCtx  * ctx, noPollConnOpts  * opts, const char  * host_ip, const char  * host_port, const char  * host_name,const char  * get_url,const char  * protocols, const char * origin)

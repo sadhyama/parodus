@@ -114,7 +114,7 @@ int validate_partner_id(wrp_msg_t *msg, partners_t **partnerIds)
                 }
 
                 /* Commandline input partner_ids not matching with partner_ids from request, appending to request partner_ids*/
-                if(matchFlag != 1)
+                if(matchFlag != 1 && partnerIds !=NULL)
                 {
                     (*partnerIds) = (partners_t *) malloc(sizeof(partners_t) + (sizeof(char *) * (count+partnersList->count)));
                     (*partnerIds)->count = count+partnersList->count;
@@ -132,6 +132,23 @@ int validate_partner_id(wrp_msg_t *msg, partners_t **partnerIds)
                         i++;
                     }
                 }
+		else if (matchFlag != 1 && partnerIds == NULL)
+		{
+			ParodusError("partner_id match not found: command line input %s , msg partner_id %s\n", temp, msg->u.event.partner_ids->partner_ids[0]);
+			if(partnersList != NULL)
+			{
+				for(j=0; j<partnersList->count; j++)
+				{
+					if(NULL != partnersList->partner_ids[j])
+					{
+						free(partnersList->partner_ids[j]);
+					}
+				}
+				free(partnersList);
+			}
+			free(partnerId);
+			return 1;
+		}
             }
             else
             {
@@ -154,6 +171,7 @@ int validate_partner_id(wrp_msg_t *msg, partners_t **partnerIds)
             {
                 count = (int) msg->u.req.partner_ids->count;
                 ParodusPrint("partner_ids count is %d\n",count);
+		ParodusInfo("Command line input is %s and msg partner_id is %s\n", temp,msg->u.req.partner_ids->partner_ids[0]);
                 for(i = 0; i < count; i++)
                 {
                     for(j = 0; j<partnersList->count; j++)

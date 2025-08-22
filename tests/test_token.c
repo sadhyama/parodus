@@ -25,6 +25,7 @@
 #include <assert.h>
 #include <cjwt/cjwt.h>
 #include <wrp-c.h>
+#include <string.h>
 
 #include "../src/token.h"
 #include "../src/ParodusInternal.h"
@@ -160,6 +161,7 @@ extern unsigned int get_algo_mask (const char *algo_str);
 
 pthread_mutex_t crud_mut=PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t crud_con=PTHREAD_COND_INITIALIZER;
+int numLoops;
 
 pthread_cond_t *get_global_crud_con(void)
 {
@@ -629,6 +631,10 @@ void test_allow_insecure_conn ()
 	char *server_addr;
 	unsigned int port;
 	ParodusCfg *cfg = get_parodus_cfg();
+
+#ifdef FEATURE_DNS_QUERY
+	cfg->record_jwt_file = strdup("xmidt-jwt-payload.json");
+#endif
 
 	parStrncpy (cfg->hw_mac, "aabbccddeeff", sizeof(cfg->hw_mac));
 	parStrncpy (cfg->dns_txt_url, "test.mydns.mycom.net", sizeof(cfg->dns_txt_url));

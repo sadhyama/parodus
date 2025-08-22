@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <fcntl.h> 
 #include "config.h"
+#include "connection.h"
 #include "auth_token.h"
 #include "ParodusInternal.h"
 #include <cjwt/cjwt.h>
@@ -31,13 +32,22 @@
 #include <curl/curl.h>
 #include <uuid/uuid.h>
 
-#define MAX_BUF_SIZE	        128
+#ifdef PARODUS_SECERT_ENABLE
+# ifndef BUILD_YOCTO
+#include "rdkconfig_generic.h"
+#else
+#include "rdkconfig.h"
+# endif
+#endif
+
+#define MAX_BUF_SIZE	        256
 #define CURL_TIMEOUT_SEC	25L
 #define MAX_CURL_RETRY_COUNT 	3
+
 /*----------------------------------------------------------------------------*/
 /*                            File Scoped Variables                           */
 /*----------------------------------------------------------------------------*/
-void createCurlheader(char *mac_header, char *serial_header, char *uuid_header, char *transaction_uuid, struct curl_slist *list, struct curl_slist **header_list);
+void createCurlheader(struct curl_slist *list, struct curl_slist **header_list);
 long g_response_code;
 /*----------------------------------------------------------------------------*/
 /*                             External Functions                             */
@@ -46,6 +56,59 @@ int getGlobalResponseCode()
 {
 	return g_response_code;
 }
+
+#ifdef PARODUS_SECERT_ENABLE
+void getConfigPwd(uint8_t **pPasswd, size_t *pPasswdSize)
+{
+	uint8_t *temp=NULL;
+	size_t tempSize;
+	int index = -1;
+
+	if(rdkconfig_get(&temp, &tempSize, get_parodus_cfg()->ssl_reference_name))
+	{
+		ParodusError("Error in getting passcode\n");
+		return;
+	}
+	else
+	{
+		if (temp != NULL)
+		{
+			index = strcspn(temp, "\t\r\n");
+			if((index > 0) && (index <= tempSize))
+			{
+				temp[index] = '\0';
+			}
+			else
+			{
+				temp[tempSize] = '\0';
+			}
+			if(strcmp(get_parodus_cfg()->ssl_reference_name,"/tmp/.cfgStaticxpki") == 0)
+				tempSize++;
+
+			*pPasswdSize = tempSize;
+			*pPasswd = malloc(tempSize);
+			if(*pPasswd != NULL)
+			{
+				memcpy(*pPasswd, temp, tempSize);
+				ParodusInfo("Passcode decoded successfully\n");
+			}
+			else
+			{
+				ParodusError("Failed to allocate memory for Passcode\n");
+			}
+
+			if (rdkconfig_free(&temp, tempSize)  == RDKCONFIG_FAIL)
+			{
+				ParodusError("%s, Memory deallocation failed \n",__FUNCTION__);
+			}
+		}
+		else
+		{
+			ParodusError("Memory allocation failed in rdkconfig_get\n");
+		}
+	}
+}
+#endif
 /*
 * @brief Initialize curl object with required options. create newToken using libcurl.
 * @param[out] newToken auth token string obtained from JWT curl response
@@ -62,12 +125,11 @@ int requestNewAuthToken(char *newToken, size_t len, int r_count)
 	struct curl_slist *list = NULL;
 	struct curl_slist *headers_list = NULL;
 
-	char *mac_header = NULL;
-	char *serial_header = NULL;
-	char *uuid_header = NULL;
-	char *transaction_uuid = NULL;
+	char webpa_interface[64]={'\0'};
 	double total;
 
+	uint8_t *pPasswd=NULL;
+	size_t pPasswdSize;
 	struct token_data data;
 	data.size = 0;
 	data.data = newToken;
@@ -77,14 +139,15 @@ int requestNewAuthToken(char *newToken, size_t len, int r_count)
 	{
 		data.data[0] = '\0';
 
-		createCurlheader(mac_header, serial_header, uuid_header, transaction_uuid, list, &headers_list);
+		createCurlheader(list, &headers_list);
 
 		curl_easy_setopt(curl, CURLOPT_URL, get_parodus_cfg()->token_server_url);
 		curl_easy_setopt(curl, CURLOPT_TIMEOUT, CURL_TIMEOUT_SEC);
 
-		if(get_parodus_cfg()->webpa_interface_used !=NULL && strlen(get_parodus_cfg()->webpa_interface_used) >0)
+		parStrncpy(webpa_interface, getWebpaInterface(), sizeof(webpa_interface));
+		if(webpa_interface !=NULL && strlen(webpa_interface) >0)
 		{
-			curl_easy_setopt(curl, CURLOPT_INTERFACE, get_parodus_cfg()->webpa_interface_used);
+			curl_easy_setopt(curl, CURLOPT_INTERFACE, webpa_interface);
 		}
 		/* set callback for writing received data */
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback_fn);
@@ -111,6 +174,32 @@ int requestNewAuthToken(char *newToken, size_t len, int r_count)
 			curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
 		}
 
+#ifdef PARODUS_SECERT_ENABLE
+		/* Set the SSL engine and SSL certificate type for the CURL request */
+		if(get_parodus_cfg()->ssl_engine != NULL && strcmp(get_parodus_cfg()->ssl_engine, "NA") != 0)
+		{
+			curl_easy_setopt(curl, CURLOPT_SSLENGINE, get_parodus_cfg()->ssl_engine);
+		}
+
+		if(get_parodus_cfg()->ssl_cert_type != NULL)
+		{
+			curl_easy_setopt(curl, CURLOPT_SSLCERTTYPE, get_parodus_cfg()->ssl_cert_type);
+		}
+
+		if((get_parodus_cfg()->ssl_cert_type != NULL) && (strcmp(get_parodus_cfg()->ssl_cert_type, "P12") == 0))
+		{
+			ParodusInfo("Getting passcode for : %s\n",get_parodus_cfg()->client_cert_path);
+			getConfigPwd(&pPasswd, &pPasswdSize);
+			if(pPasswd != NULL && pPasswdSize > 0)
+			{
+				curl_easy_setopt(curl, CURLOPT_KEYPASSWD, pPasswd);
+			}
+			else
+			{
+				ParodusError("Failed to get pPasswd for pk12\n");
+			}
+		}
+#endif
 		/* set the cert for client authentication */
 		curl_easy_setopt(curl, CURLOPT_SSLCERT, get_parodus_cfg()->client_cert_path);
 
@@ -149,12 +238,30 @@ int requestNewAuthToken(char *newToken, size_t len, int r_count)
 			{
 				ParodusError("Failed response from auth token server %s\n", data.data);
 				curl_easy_cleanup(curl);
+				#ifdef PARODUS_SECERT_ENABLE				
+				if(pPasswd != NULL && pPasswdSize > 0)
+				{
+					if (rdkconfig_free(&pPasswd, pPasswdSize) == RDKCONFIG_FAIL)
+					{
+						ParodusError("%s, Memory deallocation failed \n",__FUNCTION__);
+					}
+				}
+				#endif
 				data.size = 0;
 				memset (data.data, 0, len);
 				return -1;
 			}
 		}
 		curl_easy_cleanup(curl);
+		#ifdef PARODUS_SECERT_ENABLE		
+		if(pPasswd != NULL && pPasswdSize > 0)
+		{
+			if (rdkconfig_free(&pPasswd, pPasswdSize) == RDKCONFIG_FAIL)
+			{
+				ParodusError("%s, Memory deallocation failed \n",__FUNCTION__);
+			}
+		}
+		#endif
 	}
 	else
 	{
@@ -223,8 +330,14 @@ void getAuthToken(ParodusCfg *cfg)
  * @param[in] nmemb size of delivered data
  * @param[out] data curl response data saved.
 */
+#ifndef DEVICE_CAMERA
 size_t write_callback_fn(void *buffer, size_t size, size_t nmemb, struct token_data *data)
 {
+#else
+size_t write_callback_fn(void *buffer, size_t size, size_t nmemb, void *datain)
+{
+    struct token_data *data = (struct token_data*) datain;
+#endif //DEVICE_CAMERA
     ParodusCfg *cfg;
     size_t max_data_size = sizeof (cfg->webpa_auth_token);
     size_t index = data->size;
@@ -263,52 +376,60 @@ char* generate_trans_uuid()
 }
 
 /* @brief function to create curl header contains mac, serial number and uuid.
- * @param[in] mac_header mac address header key value pair
- * @param[in] serial_header serial number key value pair
- * @param[in] uuid_header transaction uuid key value pair
+ * @param[in] h the auth headers to populate
  * @param[in] list temp curl header list
  * @param[out] header_list output curl header list
 */
-void createCurlheader(char *mac_header, char *serial_header, char *uuid_header, char *transaction_uuid, struct curl_slist *list, struct curl_slist **header_list)
+void createCurlheader(struct curl_slist *list, struct curl_slist **header_list)
 {
-	mac_header = (char *) malloc(sizeof(char)*MAX_BUF_SIZE);
-	if(mac_header !=NULL)
-	{
-		snprintf(mac_header, MAX_BUF_SIZE, "X-Midt-Mac-Address: %s", get_parodus_cfg()->hw_mac);
-		ParodusPrint("mac_header formed %s\n", mac_header);
-		list = curl_slist_append(list, mac_header);
-		free(mac_header);
-		mac_header = NULL;
-	}
+    char buf[MAX_BUF_SIZE];
+    char *uuid = NULL;
 
-	serial_header = (char *) malloc(sizeof(char)*MAX_BUF_SIZE);
-	if(serial_header !=NULL)
-	{
-		snprintf(serial_header, MAX_BUF_SIZE, "X-Midt-Serial-Number: %s", get_parodus_cfg()->hw_serial_number);
-		ParodusPrint("serial_header formed %s\n", serial_header);
-		list = curl_slist_append(list, serial_header);
-		free(serial_header);
-		serial_header = NULL;
-	}
+    snprintf(buf, MAX_BUF_SIZE, "X-Midt-Mac-Address: %s", get_parodus_cfg()->hw_mac);
+    ParodusPrint("mac_header formed %s\n", buf);
+    list = curl_slist_append(list, buf);
 
-	transaction_uuid = generate_trans_uuid();
-	if(transaction_uuid !=NULL)
-	{
-		uuid_header = (char *) malloc(sizeof(char)*MAX_BUF_SIZE);
-		if(uuid_header !=NULL)
-		{
-			snprintf(uuid_header, MAX_BUF_SIZE, "X-Midt-Uuid: %s", transaction_uuid);
-			ParodusInfo("uuid_header formed %s\n", uuid_header);
-			list = curl_slist_append(list, uuid_header);
-			free(transaction_uuid);
-			transaction_uuid = NULL;
-			free(uuid_header);
-			uuid_header = NULL;
-		}
-	}
-	else
-	{
-		ParodusError("Failed to generate transaction_uuid\n");
-	}
-	*header_list = list;
+    snprintf(buf, MAX_BUF_SIZE, "X-Midt-Serial-Number: %s", get_parodus_cfg()->hw_serial_number);
+    ParodusPrint("serial_header formed %s\n", buf);
+    list = curl_slist_append(list, buf);
+
+    uuid = generate_trans_uuid();
+    if(uuid !=NULL) {
+        snprintf(buf, MAX_BUF_SIZE, "X-Midt-Uuid: %s", uuid);
+        ParodusInfo("uuid_header formed %s\n", buf);
+        list = curl_slist_append(list, buf);
+        free(uuid);
+    } else {
+        ParodusError("Failed to generate transaction_uuid\n");
+    }
+
+    snprintf(buf, MAX_BUF_SIZE, "X-Midt-Partner-Id: %s", get_parodus_cfg()->partner_id);
+    ParodusInfo("partnerid_header formed %s\n", buf);
+    list = curl_slist_append(list, buf);
+
+    snprintf(buf, MAX_BUF_SIZE, "X-Midt-Hardware-Model: %s", get_parodus_cfg()->hw_model);
+    list = curl_slist_append(list, buf);
+
+    snprintf(buf, MAX_BUF_SIZE, "X-Midt-Hardware-Manufacturer: %s", get_parodus_cfg()->hw_manufacturer);
+    list = curl_slist_append(list, buf);
+
+    snprintf(buf, MAX_BUF_SIZE, "X-Midt-Firmware-Name: %s", get_parodus_cfg()->fw_name);
+    list = curl_slist_append(list, buf);
+
+    snprintf(buf, MAX_BUF_SIZE, "X-Midt-Protocol: %s", get_parodus_cfg()->webpa_protocol);
+    list = curl_slist_append(list, buf);
+
+    snprintf(buf, MAX_BUF_SIZE, "X-Midt-Interface-Used: %s", getWebpaInterface());
+    list = curl_slist_append(list, buf);
+
+    snprintf(buf, MAX_BUF_SIZE, "X-Midt-Last-Reboot-Reason: %s", get_parodus_cfg()->hw_last_reboot_reason);
+    list = curl_slist_append(list, buf);
+
+    snprintf(buf, MAX_BUF_SIZE, "X-Midt-Last-Reconnect-Reason: %s", get_global_reconnect_reason());
+    list = curl_slist_append(list, buf);
+
+    snprintf(buf, MAX_BUF_SIZE, "X-Midt-Boot-Retry-Wait: %d", get_parodus_cfg()->boot_retry_wait);
+    list = curl_slist_append(list, buf);
+
+    *header_list = list;
 }

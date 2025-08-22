@@ -30,10 +30,7 @@
 /*----------------------------------------------------------------------------*/
 /*                            File Scoped Variables                           */
 /*----------------------------------------------------------------------------*/
-volatile unsigned int heartBeatTimer;
 bool LastReasonStatus;
-pthread_mutex_t close_mut;
-bool close_retry;
 /*----------------------------------------------------------------------------*/
 /*                                   Mocks                                    */
 /*----------------------------------------------------------------------------*/
@@ -71,7 +68,6 @@ nopoll_bool nopoll_msg_is_final(noPollMsg *msg)
     function_called();
     return (nopoll_bool) mock();
 }
-
 const unsigned char *nopoll_msg_get_payload(noPollMsg *msg)
 {
 	(void)msg;

@@ -77,6 +77,7 @@ void createSocketConnection(void (* initKeypress)())
     server_list_t server_list;  
     bool seshat_registered = false;
     int create_conn_rtn = 0;
+    int nopoll_returnvalue = 0;	
     unsigned int webpa_ping_timeout_ms = 1000 * get_parodus_cfg()->webpa_ping_timeout;
     unsigned int heartBeatTimer = 0;
     struct timespec start_svc_alive_timer;
@@ -98,7 +99,9 @@ void createSocketConnection(void (* initKeypress)())
     #endif
 
     EventHandler();
-    
+    #ifdef WAN_FAILOVER_SUPPORTED
+    subscribeCurrentActiveInterfaceEvent();
+    #endif
     set_server_list_null (&server_list);
     create_conn_rtn = createNopollConnection(ctx, &server_list);
     if(!create_conn_rtn)
@@ -107,7 +110,6 @@ void createSocketConnection(void (* initKeypress)())
 		OnboardLog("Unrecovered error, terminating the process\n");
 		abort();
     }
-    packMetaData();
     
     UpStreamMsgQ = NULL;
     StartThread(handle_upstream, &upstream_tid);
@@ -131,14 +133,17 @@ void createSocketConnection(void (* initKeypress)())
         struct timespec start, stop, diff;
         int time_taken_ms;
 
-        clock_gettime(CLOCK_REALTIME, &start);
-        nopoll_loop_wait(ctx, 5000000);
-        clock_gettime(CLOCK_REALTIME, &stop);
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        nopoll_returnvalue = nopoll_loop_wait(ctx, 5000000);
+        clock_gettime(CLOCK_MONOTONIC, &stop);
 
         timespec_diff(&start, &stop, &diff);
         time_taken_ms = diff.tv_sec * 1000 + (diff.tv_nsec / 1000000);
-
-        // ParodusInfo("nopoll_loop_wait() time %d msec\n", time_taken_ms);
+	if(time_taken_ms/1000 != 5)
+	{
+        	ParodusInfo("nopoll_loop_wait value %d,nopoll_loop_wait() time %d msec\n",nopoll_returnvalue, time_taken_ms);
+	}
+	ParodusPrint("webpa_ping_timeout_ms %d msec\n", webpa_ping_timeout_ms);
 	heartBeatTimer = get_heartBeatTimer();
         if(heartBeatTimer >= webpa_ping_timeout_ms)
         {
@@ -195,7 +200,8 @@ void createSocketConnection(void (* initKeypress)())
             }
             createNopollConnection(ctx, &server_list);
         }
-       } while(!get_close_retry() && !g_shutdown);
+	 //process exit only when g_shutdown is true.
+       } while(FOREVER() && !g_shutdown);
 
     pthread_mutex_lock (get_global_svc_mut());
     pthread_cond_signal (get_global_svc_con());
@@ -224,12 +230,25 @@ void createSocketConnection(void (* initKeypress)())
     nopoll_ctx_unref(ctx);
     nopoll_cleanup_library();
     curl_global_cleanup();
+    clear_metadata();
+    //enabled for yocto buid, disabling for local pc due to build failure
+#ifdef BUILD_YOCTO
+    rdk_logger_deinit();
+#endif	
+    free_server_list(&server_list);
 }
 
 void shutdownSocketConnection(char *reason) {
    set_global_shutdown_reason (reason);
-   g_shutdown = true;
-   reset_interface_down_event ();
-   terminate_backoff_delay ();
+   if(g_shutdown == false)
+   {
+    g_shutdown = true;
+    reset_interface_down_event ();
+    terminate_backoff_delay ();
+   }
+   else
+   {
+	ParodusInfo("Shutdown already in progress\n");
+   }
 }
 

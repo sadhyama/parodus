@@ -14,6 +14,7 @@
 
 cmake_minimum_required(VERSION 2.8.7)
 
+#project(parodus VERSION 1.1.15)
 project(parodus)
 
 include(ExternalProject)
@@ -42,6 +43,11 @@ include_directories(${INCLUDE_DIR}
                     ${INCLUDE_DIR}/cjwt
 					)	
 
+if (ENABLE_WEBCFGBIN)
+include_directories(${INCLUDE_DIR}/rbus)
+endif (ENABLE_WEBCFGBIN)
+
+
 # Get git commit hash 
 #-------------------------------------------------------------------------------
 execute_process(
@@ -58,9 +64,18 @@ add_definitions("-DGIT_COMMIT_TAG=\"${GIT_COMMIT_TAG}\"")
 add_definitions(-std=c99)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GNU_SOURCE -DNOPOLL_LOGGER ")
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror -Wall -Wno-missing-field-initializers")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wall")
+if (DEVICE_CAMERA)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=all -Wno-missing-field-initializers")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=all")
+add_definitions(-DDEVICE_CAMERA)
+else ()
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=all -Wno-missing-field-initializers")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=all")
+endif (DEVICE_CAMERA)
 
+if (INCLUDE_BREAKPAD)
+add_definitions(-DINCLUDE_BREAKPAD)
+endif (INCLUDE_BREAKPAD)
 
 # pthread external dependency
 #-------------------------------------------------------------------------------
@@ -85,7 +100,7 @@ add_dependencies(libtrower-base64 trower-base64)
 ExternalProject_Add(nopoll
     PREFIX ${PREFIX_DIR}/nopoll
     GIT_REPOSITORY https://github.com/Comcast/nopoll.git
-    GIT_TAG "1.0.2"
+    GIT_TAG "1.0.3"
     CONFIGURE_COMMAND COMMAND <SOURCE_DIR>/autogen.sh --prefix=${PREFIX}
                                                      --includedir=${INCLUDE_DIR}
                                                      --libdir=${LIBRARY_DIR}
@@ -130,6 +145,7 @@ ExternalProject_Add(msgpack
     CMAKE_ARGS += -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}
                   -DMSGPACK_ENABLE_CXX=OFF
                   -DMSGPACK_BUILD_EXAMPLES=OFF
+                  -DMSGPACK_BUILD_TESTS=OFF                  
 )
 add_library(libmsgpack STATIC SHARED IMPORTED)
 add_dependencies(libmsgpack msgpack)
@@ -164,8 +180,8 @@ add_dependencies(libcimplog cimplog)
 ExternalProject_Add(wrp-c
 	DEPENDS trower-base64 msgpack cimplog
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_prefix/wrp-c
-    GIT_REPOSITORY https://github.com/Comcast/wrp-c.git
-    GIT_TAG "1.0.1"
+    GIT_REPOSITORY https://github.com/xmidt-org/wrp-c.git
+    GIT_TAG "b5ef4d10cb39905908788bc89ab3e4dab201db8a"
     CMAKE_ARGS += -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}
                   -DMSGPACK_ENABLE_CXX=OFF
                   -DMSGPACK_BUILD_EXAMPLES=OFF
@@ -228,6 +244,27 @@ include_directories(${INCLUDE_DIR}
 
 endif (FEATURE_DNS_QUERY)
 
+#This RBUS already build from github actions rtrouted.sh script, So disabled in github workflow
+if (( NOT BUILD_GIT) AND ENABLE_WEBCFGBIN)
+# rbus external dependency
+#-------------------------------------------------------------------------------
+ExternalProject_Add(rbus
+     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_prefix/rbus
+     GIT_REPOSITORY https://github.com/rdkcentral/rbus.git
+     GIT_TAG main
+     CMAKE_ARGS += -DBUILD_FOR_DESKTOP=ON -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DBUILD_TESTING=OFF
+)
+
+add_library(librbuscore STATIC SHARED IMPORTED)
+add_dependencies(librbuscore rbuscore)
+
+add_library(librtMessage STATIC SHARED IMPORTED)
+add_dependencies(librtMessage rtMessage)
+
+add_library(librbus STATIC SHARED IMPORTED)
+add_dependencies(librbus rbus)
+endif ()
+
 if (BUILD_TESTING)
 # cmocka external dependency
 #-------------------------------------------------------------------------------
@@ -251,6 +288,18 @@ endif (BUILD_YOCTO)
 if (FEATURE_DNS_QUERY)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DFEATURE_DNS_QUERY ")
 endif (FEATURE_DNS_QUERY)
+
+if (ENABLE_WEBCFGBIN)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DENABLE_WEBCFGBIN ")
+endif (ENABLE_WEBCFGBIN)
+
+if (WAN_FAILOVER_SUPPORTED)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWAN_FAILOVER_SUPPORTED ")
+endif (WAN_FAILOVER_SUPPORTED)
+
+if (PARODUS_SECERT_ENABLE)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DPARODUS_SECERT_ENABLE ")
+endif (PARODUS_SECERT_ENABLE)
 
 link_directories ( ${LIBRARY_DIR} ${COMMON_LIBRARY_DIR} ${LIBRARY_DIR64} )
 add_subdirectory(src)

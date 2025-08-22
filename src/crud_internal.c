@@ -26,6 +26,9 @@
 #include "config.h"
 #include "connection.h"
 #include "close_retry.h"
+#include "client_list.h"
+
+#define SERVICE_STATUS "service-status"
 
 static void freeObjArray(char *(*obj)[], int size);
 static int writeIntoCrudJson(cJSON *res_obj, char * object, cJSON *objValue, int freeFlag);
@@ -33,6 +36,7 @@ static int parse_dest_elements_to_string(wrp_msg_t *reqMsg, char *(*obj)[]);
 static char* strdupptr( const char *s, const char *e );
 static int ConnDisconnectFromCloud(char *reason);
 static int validateDisconnectString(char *reason);
+static int getClientStatus(char *service, cJSON **jsonresponse);
 
 int writeToJSON(char *data)
 {
@@ -533,13 +537,13 @@ int retrieveFromMemory(char *keyName, cJSON **jsonresponse)
 	}
 	else if(strcmp(WEBPA_INTERFACE, keyName)==0)
 	{
-		if((get_parodus_cfg()->webpa_interface_used !=NULL)&& (strlen(get_parodus_cfg()->fw_name)==0))
+		if((getWebpaInterface() !=NULL)&& (strlen(get_parodus_cfg()->fw_name)==0))
 		{
 			ParodusError("retrieveFromMemory: webpa_interface_used value is NULL\n");
 			return -1;
 		}
-		ParodusInfo("retrieveFromMemory: keyName:%s value:%s\n",keyName,get_parodus_cfg()->webpa_interface_used);
-		cJSON_AddItemToObject( *jsonresponse, WEBPA_INTERFACE , cJSON_CreateString(get_parodus_cfg()->webpa_interface_used));
+		ParodusInfo("retrieveFromMemory: keyName:%s value:%s\n",keyName,getWebpaInterface());
+		cJSON_AddItemToObject( *jsonresponse, WEBPA_INTERFACE , cJSON_CreateString(getWebpaInterface()));
 	}
 	else if(strcmp(WEBPA_URL, keyName)==0)
 	{
@@ -573,20 +577,20 @@ int retrieveFromMemory(char *keyName, cJSON **jsonresponse)
 	}
 	else if(strcmp(CLOUD_STATUS, keyName)==0)
 	{
-		if(get_parodus_cfg()->cloud_status ==NULL)
+		if(get_cloud_status() ==NULL)
 		{
 			ParodusError("retrieveFromMemory: cloud_status value is NULL\n");
 			return -1;
 		}
-		else if((get_parodus_cfg()->cloud_status !=NULL) && (strlen(get_parodus_cfg()->cloud_status)==0))
+		else if((get_cloud_status() !=NULL) && (strlen(get_cloud_status())==0))
 		{
 			ParodusError("retrieveFromMemory: cloud_status value is empty\n");
 			return -1;
 		}
 		else
 		{
-			ParodusInfo("retrieveFromMemory: keyName:%s value:%s\n", keyName, get_parodus_cfg()->cloud_status);
-			cJSON_AddItemToObject( *jsonresponse, CLOUD_STATUS , cJSON_CreateString(get_parodus_cfg()->cloud_status));
+			ParodusInfo("retrieveFromMemory: keyName:%s value:%s\n", keyName, get_cloud_status());
+			cJSON_AddItemToObject( *jsonresponse, CLOUD_STATUS , cJSON_CreateString(get_cloud_status()));
 		}
 	}
 	else if(strcmp(BOOT_TIME, keyName)==0)
@@ -639,10 +643,17 @@ int retrieveObject( wrp_msg_t *reqMsg, wrp_msg_t **response )
 		}
 
 		ParodusInfo( "Number of object level %d\n", objlevel );
-
-		if(objlevel == 3 && ((obj[3] !=NULL) && strstr(obj[3] ,"tags") == NULL))
+		if((objlevel == 3 && ((obj[3] !=NULL) && strstr(obj[3] ,"tags") == NULL)) || (objlevel == 4 && ((obj[3] !=NULL) && strstr(obj[3] ,"service-status") != NULL)))
 		{
-			inMemStatus = retrieveFromMemory(obj[3], &inMemResponse );
+			//To support dest "mac:14xxxxxxxxxx/parodus/service-status/service" to retrieve online/offline status of registered clients.
+			if(strstr(obj[3] ,"service-status") !=NULL)
+			{
+				inMemStatus = getClientStatus(obj[4], &inMemResponse );
+			}
+			else
+			{
+				inMemStatus = retrieveFromMemory(obj[3], &inMemResponse );
+			}
 
 			if(inMemStatus == 0)
 			{
@@ -1612,4 +1623,28 @@ static int validateDisconnectString(char *reason)
 		rv = -1;
 	}
 	return rv;
+}
+
+static int getClientStatus(char *service, cJSON **jsonresponse)
+{
+	char regstatus[16] ={0};
+	*jsonresponse = cJSON_CreateObject();
+
+	if(service == NULL)
+	{
+		ParodusError("service is NULL\n");
+		return -1;
+	}
+
+	if(checkClientStatus(service))
+	{
+		strncpy(regstatus, "online", sizeof(regstatus)-1);
+	}
+	else
+	{
+		strncpy(regstatus, "offline", sizeof(regstatus)-1);
+	}
+	ParodusPrint("getClientStatus: service:%s value:%s\n", service, regstatus);
+	cJSON_AddItemToObject( *jsonresponse, SERVICE_STATUS , cJSON_CreateString(regstatus));
+	return 0;
 }
