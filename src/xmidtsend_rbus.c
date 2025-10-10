@@ -1801,35 +1801,20 @@ int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **method
 
 	const char* typeStr = "param";
 
-    // Build inParams from JSON payload
+    // Extract and process each item in the JSON payload
     cJSON_ArrayForEach(item, payloadJson)
     {
         if (!item->string) continue;
         if (strcmp(item->string, "method") == 0) continue;
         if (strcmp(item->string, "params") == 0)
 		{
+			/*
+			* Object with key-value pairs
+			* Example: "params": { "key": "val" }
+			*/
 			if (cJSON_IsObject(item))
 			{
-/*
-* Case 1: "params" as a JSON object (key-value pairs).
-*
-* Example input (Use Case 1):
-*   "params": {
-*       "linux_interface_name": "erouter0",
-*       "alias": "DOCSIS",
-*       "IPv4_DNS_Servers": "75.75.75.75,75.75.76.76"
-*   }
-*
-* This will produce RBUS inParams as:
-*   linux_interface_name = "erouter0"
-*   alias               = "DOCSIS"
-*   IPv4_DNS_Servers    = "75.75.75.75,75.75.76.76"
-*
-* Each JSON key becomes the RBUS object key, and its value
-* is stored as the corresponding RBUS value.
-*/
 				cJSON *inner = NULL;
-				// --- Case 1: params as object ---
 				cJSON_ArrayForEach(inner, item)
 				{
 					if (!inner->string) continue;
@@ -1864,30 +1849,16 @@ int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **method
 			}
 			else if (cJSON_IsArray(item))
 			{
-/*
-* Case 2: "params" as a JSON array of strings (list of values).
-* Case 3: "params" as a array of objects (lists of objects).
-*/
 				int idx = 0;
 				cJSON *inner = NULL;
 				cJSON_ArrayForEach(inner, item)
 				{
 					char key[256];
 					snprintf(key, sizeof(key), "%s%d", typeStr, idx++);
-/*
-* Use Case 2: params as array of strings
-*
-* Example input (Use Case 2):
-*   "params": [
-*       "Device.WiFi.SSID.1.SSID",
-*       "Device.WiFi.SSID.2.SSID"
-*   ]
-*
-*
-* This will produce RBUS inParams as:
-*   param0 = "Device.WiFi.SSID.1.SSID"
-*   param1 = "Device.WiFi.SSID.2.SSID"
-*/
+					/*
+					* Object as an array of strings
+					* Example: "params": ["val1","val2"]
+					*/
 					if (cJSON_IsString(inner))
 					{
 						rbusValue_t val;
@@ -1896,28 +1867,10 @@ int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **method
 						rbusObject_SetValue(inParams, key, val);
 						rbusValue_Release(val);
 					}
-/*
-* Use Case 3: params as array of objects
-*
-* Example input (Use Case 2):
-*  "params":[
-*     {"name":"Device.WiFi.SSID.1.SSID","notificationType":"ValueChange","notifRetry":true,"notifExpiration":3600,"triggerAction":"Notify"},
-*     {"name":"Device.WiFi.SSID.2.SSID","notificationType":"ValueChange","notifRetry":false,"notifExpiration":0,"triggerAction":"Notify"}
-*  ]
-*
-*
-* This will produce RBUS inParams as:
-* param0:
-*    name = Device.WiFi.SSID.1.SSID
-*    notificationType = ValueChange
-*    notifRetry = true
-*    notifExpirationc= 3600
-* param1:
-*    name = Device.WiFi.SSID.2.SSID
-*    notificationType = ValueChange
-*    notifRetry = false
-*    notifExpiration = 0
-*/
+					/*
+					* Object as an array of nested key-value pairs
+					* Example: "params": [ { "key1": "val1" }, { "key2": "val2" }  ]
+					*/
 					else if (cJSON_IsObject(inner))
 					{
 						rbusObject_t subObj;
@@ -1968,11 +1921,12 @@ int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **method
 			else
             {
                 ParodusPrint("Unsupported params type\n");
+				return -1;
             }
 		}
 		else
 		{
-			ParodusPrint("Skipping unsupported type for key: %s\n", item->string);
+			ParodusPrint("params key is missing from the input payload.\n");
 		}
     }
 
@@ -2001,6 +1955,7 @@ int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **method
 	if(status_code == -1)
 		status_code = (rc == RBUS_ERROR_SUCCESS) ? 0 : rc;
 
+	ParodusInfo("Method Invoke response msg: %s status: %d\n", return_message ? return_message : "NULL", status_code);
     char *buf = NULL;
     int n = asprintf(&buf, "{\"message\":\"%s\", \"statusCode\":%d}", return_message ? return_message : "NULL", status_code);
     if (n > 0 && buf)
