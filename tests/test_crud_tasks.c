@@ -47,6 +47,23 @@ cJSON * cJSON_Parse(const char *payload)
     return (cJSON *) mock();
 }
 
+cJSON* cJSON_GetObjectItem(const cJSON *object, const char *string)
+{
+    function_called();
+    return (cJSON*)mock_ptr_type(cJSON*);
+}
+
+int cJSON_IsString(const cJSON *item)
+{
+    function_called();
+    return mock_type(int);
+}
+
+void cJSON_Delete(cJSON *item)
+{
+    function_called();
+}
+
 int createObject(wrp_msg_t *reqMsg , wrp_msg_t **response)
 {
     UNUSED(reqMsg); UNUSED(response); 
@@ -262,6 +279,115 @@ void test_processCrudRequestFailure()
 
 }
 
+void test_processCrudRequest_MethodInvocationFailure()
+{
+    int ret = -2;
+    wrp_msg_t *reqMsg = malloc(sizeof(wrp_msg_t));
+    memset(reqMsg, 0, sizeof(wrp_msg_t));
+
+    reqMsg->msg_type = 7;
+    reqMsg->u.crud.transaction_uuid = strdup("1234");
+    reqMsg->u.crud.source = strdup("tag-update");
+    reqMsg->u.crud.dest = strdup("mac:14xxx/parodus/method/reboot");
+
+    ret = processCrudRequest(reqMsg, &response);
+    assert_int_equal(ret, -1);
+
+    if(reqMsg) wrp_free_struct(reqMsg);
+}
+void test_processCrudRequest_MethodInvocationFailure_InvalidPayload()
+{
+    int ret = -2;
+    wrp_msg_t *reqMsg = malloc(sizeof(wrp_msg_t));
+    memset(reqMsg, 0, sizeof(wrp_msg_t));
+
+    reqMsg->msg_type = 7;
+    reqMsg->u.crud.transaction_uuid = strdup("1234");
+    reqMsg->u.crud.source = strdup("tag-update");
+    reqMsg->u.crud.dest = strdup("mac:14xxx/parodus/method/reboot");
+    reqMsg->u.crud.payload = strdup("{\"method\":\"Device.Reboot()\"}");
+    reqMsg->u.crud.payload_size = strlen(reqMsg->u.crud.payload);
+
+    expect_function_call(cJSON_Parse);
+    will_return(cJSON_Parse, NULL);
+
+    ret = processCrudRequest(reqMsg, &response);
+    assert_int_equal(ret, -1);
+
+    wrp_free_struct(reqMsg);
+}
+
+void test_processCrudRequest_MethodInvocationFailure_InvalidObject()
+{
+    int ret = -2;
+    wrp_msg_t *reqMsg = malloc(sizeof(wrp_msg_t));
+    memset(reqMsg, 0, sizeof(wrp_msg_t));
+
+    reqMsg->msg_type = 7;
+    reqMsg->u.crud.transaction_uuid = strdup("1234");
+    reqMsg->u.crud.source = strdup("tag-update");
+    reqMsg->u.crud.dest = strdup("mac:14xxx/parodus/method/reboot");
+    reqMsg->u.crud.payload = strdup("{\"method\":\"Device.Reboot()\"}");
+    reqMsg->u.crud.payload_size = strlen(reqMsg->u.crud.payload);
+
+    // Fake cJSON objects
+    static cJSON fakeJson;
+    static cJSON fakeMethodObj;
+    fakeMethodObj.valuestring = NULL;
+
+    expect_function_call(cJSON_Parse);
+    will_return(cJSON_Parse, &fakeJson);
+
+    expect_function_call(cJSON_GetObjectItem);
+    will_return(cJSON_GetObjectItem, &fakeMethodObj);
+
+    expect_function_call(cJSON_IsString);
+    will_return(cJSON_IsString, 1);
+
+    expect_function_call(cJSON_Delete);
+
+    ret = processCrudRequest(reqMsg, &response);
+    assert_int_equal(ret, -1);
+
+    wrp_free_struct(reqMsg);
+}
+
+void test_processCrudRequest_MethodInvocationFailure_InvalidMethod()
+{
+    int ret = -2;
+    wrp_msg_t *reqMsg = malloc(sizeof(wrp_msg_t));
+    memset(reqMsg, 0, sizeof(wrp_msg_t));
+
+    reqMsg->msg_type = 7;
+    reqMsg->u.crud.transaction_uuid = strdup("1234");
+    reqMsg->u.crud.source = strdup("tag-update");
+    reqMsg->u.crud.dest = strdup("mac:14xxx/parodus/method/reboot");
+    reqMsg->u.crud.payload = strdup("{\"method\":\"Device.Reboot()\"}");
+    reqMsg->u.crud.payload_size = strlen(reqMsg->u.crud.payload);
+
+    // Fake cJSON objects
+    static cJSON fakeJson;
+    static cJSON fakeMethodObj;
+    fakeMethodObj.valuestring = "Device.Reboot";
+
+    expect_function_call(cJSON_Parse);
+    will_return(cJSON_Parse, &fakeJson);
+
+    expect_function_call(cJSON_GetObjectItem);
+    will_return(cJSON_GetObjectItem, &fakeMethodObj);
+
+    expect_function_call(cJSON_IsString);
+    will_return(cJSON_IsString, 1);
+
+    // expect_function_call(cJSON_Delete);
+
+    ret = processCrudRequest(reqMsg, &response);
+    assert_int_equal(ret, -1);
+
+    wrp_free_struct(reqMsg);
+}
+
+
 /*----------------------------------------------------------------------------*/
 /*                             External Functions                             */
 /*----------------------------------------------------------------------------*/
@@ -278,6 +404,10 @@ int main(void)
         cmocka_unit_test(test_processCrudRequestDelete),
         cmocka_unit_test(test_processCrudRequestDeleteFailure),
         cmocka_unit_test(test_processCrudRequestFailure),
+        cmocka_unit_test(test_processCrudRequest_MethodInvocationFailure),
+        cmocka_unit_test(test_processCrudRequest_MethodInvocationFailure_InvalidPayload),
+        cmocka_unit_test(test_processCrudRequest_MethodInvocationFailure_InvalidObject),
+        cmocka_unit_test(test_processCrudRequest_MethodInvocationFailure_InvalidMethod)
     };
 
     return cmocka_run_group_tests(tests, NULL, NULL);
