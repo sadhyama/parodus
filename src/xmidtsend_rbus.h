@@ -89,7 +89,15 @@ typedef enum
     DELETE
 } MSG_STATUS;
 
-#define MAX_BUF_SIZE	        256
+typedef enum {
+    HTTP_STATUS_OK                  = 200,
+    HTTP_MULTI_STATUS               = 207,
+    HTTP_STATUS_BAD_REQUEST         = 400,
+    HTTP_STATUS_CONFLICT            = 409,
+    HTTP_STATUS_INTERNAL_ERROR      = 500,
+    HTTP_STATUS_SERVICE_UNAVAILABLE = 503,
+    HTTP_STATUS_GATEWAY_TIMEOUT     = 504
+} HTTP_STATUS;
 
 /*----------------------------------------------------------------------------*/
 /*                             Function Prototypes                            */
@@ -121,6 +129,7 @@ void checkMaxQandOptimize(XmidtMsg *xmdMsg);
 void checkMsgExpiry(XmidtMsg *xmdMsg);
 void mapXmidtStatusToStatusMessage(int status, char **message);
 int xmidtQOptmize();
+HTTP_STATUS rbusError_ToHttpCode(rbusError_t e);
 int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **methodResponseOut);
 #ifdef __cplusplus
 }

@@ -1784,12 +1784,55 @@ void mapXmidtStatusToStatusMessage(int status, char **message)
 	*message = result;
 }
 
+HTTP_STATUS rbusError_ToHttpCode(rbusError_t e)
+{
+    switch(e)
+    {
+        case RBUS_ERROR_SUCCESS:
+            return HTTP_STATUS_OK;
+
+        // Invalid Input
+        case RBUS_ERROR_INVALID_INPUT:
+        case RBUS_ERROR_INVALID_EVENT:
+        case RBUS_ERROR_INVALID_HANDLE:
+            return HTTP_STATUS_BAD_REQUEST;
+
+        case RBUS_ERROR_SUBSCRIPTION_ALREADY_EXIST:
+            return HTTP_STATUS_CONFLICT;
+
+        case RBUS_ERROR_OUT_OF_RESOURCES:
+        case RBUS_ERROR_BUS_ERROR:
+            return HTTP_STATUS_INTERNAL_ERROR;
+
+        /* Timeout */
+        case RBUS_ERROR_TIMEOUT:
+            return HTTP_STATUS_GATEWAY_TIMEOUT;
+
+        case RBUS_ERROR_ASYNC_RESPONSE:
+            return HTTP_MULTI_STATUS;
+
+        default:
+            return HTTP_STATUS_INTERNAL_ERROR;
+    }
+}
+
 int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **methodResponseOut)
 {
+	cJSON *responseObj = NULL;
+	char *responseStr = NULL;
 	rbusHandle_t rbus_handle = get_parodus_rbus_Handle();
     if (!rbus_handle)
     {
         ParodusError("rbus_methodHandler failed: rbus_handle is NULL\n");
+		responseObj = cJSON_CreateObject();
+		if(responseObj)
+		{
+			cJSON_AddStringToObject(responseObj, "message", "RBUS handle is NULL");
+			cJSON_AddNumberToObject(responseObj, "statusCode", HTTP_STATUS_INTERNAL_ERROR);
+			responseStr = cJSON_PrintUnformatted(responseObj);
+			if(responseStr) *methodResponseOut = responseStr;
+			cJSON_Delete(responseObj);
+		}
         return -1;
     }
 
@@ -1920,13 +1963,32 @@ int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **method
 			}
 			else
             {
-                ParodusPrint("Unsupported params type\n");
+                ParodusPrint("Unsupported Input\n");
+				responseObj = cJSON_CreateObject();
+				if(responseObj)
+				{
+					cJSON_AddStringToObject(responseObj, "message", "Unsupported Input");
+					cJSON_AddNumberToObject(responseObj, "statusCode", HTTP_STATUS_BAD_REQUEST);
+					responseStr = cJSON_PrintUnformatted(responseObj);
+					if(responseStr) *methodResponseOut = responseStr;
+					cJSON_Delete(responseObj);
+				}
 				return -1;
             }
 		}
 		else
 		{
-			ParodusPrint("params key is missing from the input payload.\n");
+			ParodusError("params key is missing from the input payload.\n");
+			responseObj = cJSON_CreateObject();
+			if(responseObj)
+			{
+				cJSON_AddStringToObject(responseObj, "message", "Missing params key");
+				cJSON_AddNumberToObject(responseObj, "statusCode", HTTP_STATUS_BAD_REQUEST);
+				responseStr = cJSON_PrintUnformatted(responseObj);
+				if(responseStr) *methodResponseOut = responseStr;
+				cJSON_Delete(responseObj);
+			}
+			return -1;
 		}
     }
 
@@ -1953,13 +2015,19 @@ int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **method
 	if (!return_message)
 		return_message = (rc == RBUS_ERROR_SUCCESS) ? "Success" : rbusError_ToString(rc);
 	if(status_code == -1)
-		status_code = (rc == RBUS_ERROR_SUCCESS) ? 0 : rc;
+		status_code = (rc == RBUS_ERROR_SUCCESS) ? HTTP_STATUS_OK : rbusError_ToHttpCode(rc);
 
 	ParodusInfo("Method Invoke response msg: %s status: %d\n", return_message ? return_message : "NULL", status_code);
-    char *buf = NULL;
-    int n = asprintf(&buf, "{\"message\":\"%s\", \"statusCode\":%d}", return_message ? return_message : "NULL", status_code);
-    if (n > 0 && buf)
-        *methodResponseOut = buf;
+
+	responseObj = cJSON_CreateObject();
+	if(responseObj)
+	{
+		cJSON_AddStringToObject(responseObj, "message", return_message ? return_message : "NULL");
+		cJSON_AddNumberToObject(responseObj, "statusCode", status_code);
+		responseStr = cJSON_PrintUnformatted(responseObj);
+		if(responseStr) *methodResponseOut = responseStr;
+		cJSON_Delete(responseObj);
+	}
 
     if (outParams)
         rbusObject_Release(outParams);
