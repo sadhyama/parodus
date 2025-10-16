@@ -89,16 +89,14 @@ typedef enum
     DELETE
 } MSG_STATUS;
 
-typedef enum {
-    HTTP_STATUS_OK                  = 200,
-    HTTP_MULTI_STATUS               = 207,
-    HTTP_STATUS_BAD_REQUEST         = 400,
-    HTTP_STATUS_CONFLICT            = 409,
-    HTTP_STATUS_INTERNAL_ERROR      = 500,
-    HTTP_STATUS_SERVICE_UNAVAILABLE = 503,
-    HTTP_STATUS_GATEWAY_TIMEOUT     = 504
-} HTTP_STATUS;
-
+typedef enum
+{
+    METHOD_STATUS_SUCCESS             = 200,
+    METHOD_STATUS_FAILURE             = 500,
+    METHOD_STATUS_MULTI_STATUS        = 207,
+    METHOD_STATUS_INVALID_REQUEST     = 400,
+    METHOD_STATUS_CONFLICT            = 409
+} METHOD_STATUS;
 /*----------------------------------------------------------------------------*/
 /*                             Function Prototypes                            */
 /*----------------------------------------------------------------------------*/
@@ -129,7 +127,6 @@ void checkMaxQandOptimize(XmidtMsg *xmdMsg);
 void checkMsgExpiry(XmidtMsg *xmdMsg);
 void mapXmidtStatusToStatusMessage(int status, char **message);
 int xmidtQOptmize();
-HTTP_STATUS rbusError_ToHttpCode(rbusError_t e);
 int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **methodResponseOut);
 #ifdef __cplusplus
 }
