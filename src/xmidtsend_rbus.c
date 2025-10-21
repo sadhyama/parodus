@@ -1784,7 +1784,7 @@ void mapXmidtStatusToStatusMessage(int status, char **message)
 	*message = result;
 }
 
-int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **methodResponseOut)
+int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **methodResponseOut, int *crudStatusOut)
 {
 	cJSON *responseObj = NULL;
 	char *responseStr = NULL;
@@ -1795,8 +1795,9 @@ int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **method
 		responseObj = cJSON_CreateObject();
 		if(responseObj)
 		{
+			if (crudStatusOut) *crudStatusOut = METHOD_STATUS_FAILURE;
 			cJSON_AddStringToObject(responseObj, "message", "RBUS handle is NULL");
-			cJSON_AddNumberToObject(responseObj, "statusCode", METHOD_STATUS_FAILURE);
+			cJSON_AddNumberToObject(responseObj, "statusCode", *crudStatusOut);
 			responseStr = cJSON_PrintUnformatted(responseObj);
 			if(responseStr) *methodResponseOut = responseStr;
 			cJSON_Delete(responseObj);
@@ -1808,10 +1809,9 @@ int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **method
 	rbusObject_t inParams = NULL, outParams = NULL;
 	rbusObject_Init(&inParams, NULL);
     *methodResponseOut = NULL;
+	const char* typeStr = "param";
 	cJSON *item = NULL;
 	int validCount = 0;
-
-	const char* typeStr = "param";
 
     // Extract and process each item in the JSON payload
     cJSON_ArrayForEach(item, payloadJson)
@@ -1836,8 +1836,15 @@ int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **method
 
 					if (cJSON_IsString(inner))
 					{
-						const char* s = inner->valuestring ? inner->valuestring : "";
-                        rbusValue_SetString(val, s);
+						if (inner->valuestring && strlen(inner->valuestring) > 0) {
+							const char* s = inner->valuestring;
+							rbusValue_SetString(val, s);
+						}
+						else
+						{
+							rbusValue_Release(val);
+							continue;
+						}
 					}
 					else if (cJSON_IsNumber(inner))
                     {
@@ -1887,17 +1894,6 @@ int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **method
 					*/
 					else if (cJSON_IsObject(inner))
 					{
-						cJSON *nameField = cJSON_GetObjectItem(inner, "name");
-						cJSON *typeField = cJSON_GetObjectItem(inner, "notificationType");
-
-						if (!nameField || !cJSON_IsString(nameField) || !*nameField->valuestring ||
-							!typeField || !cJSON_IsString(typeField) || !*typeField->valuestring)
-						{
-							ParodusError("Skipping invalid subscription entry: missing or invalid 'name' or 'notificationType'\n");
-							continue;
-						}
-						validCount++;
-
 						rbusObject_t subObj;
 						rbusObject_Init(&subObj, key);
 
@@ -1910,7 +1906,15 @@ int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **method
 							rbusValue_Init(&val);
 
 							if (cJSON_IsString(field))
-								rbusValue_SetString(val, field->valuestring);
+							{
+								if (field->valuestring && strlen(field->valuestring) > 0) {
+									rbusValue_SetString(val, field->valuestring);
+								}
+								else {
+									rbusValue_Release(val);
+									continue;
+								}
+							}
 							else if (cJSON_IsNumber(field))
                             {
                                 double d = field->valuedouble;
@@ -1929,6 +1933,7 @@ int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **method
 							}
 							rbusObject_SetValue(subObj, field->string, val);
 							rbusValue_Release(val);
+							validCount++;
 						}
 						rbusValue_t objVal;
 						rbusValue_Init(&objVal);
@@ -1946,11 +1951,12 @@ int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **method
 			else
             {
                 ParodusInfo("Unsupported Input\n");
+				if (crudStatusOut) *crudStatusOut = METHOD_STATUS_FAILURE;
 				responseObj = cJSON_CreateObject();
 				if(responseObj)
 				{
 					cJSON_AddStringToObject(responseObj, "message", "Unsupported Input");
-					cJSON_AddNumberToObject(responseObj, "statusCode", METHOD_STATUS_INVALID_REQUEST);
+					cJSON_AddNumberToObject(responseObj, "statusCode", *crudStatusOut);
 					responseStr = cJSON_PrintUnformatted(responseObj);
 					if(responseStr) *methodResponseOut = responseStr;
 					cJSON_Delete(responseObj);
@@ -1961,11 +1967,12 @@ int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **method
 		else
 		{
 			ParodusError("params key is missing from the input payload.\n");
+			if (crudStatusOut) *crudStatusOut = METHOD_STATUS_INVALID_REQUEST;
 			responseObj = cJSON_CreateObject();
 			if(responseObj)
 			{
 				cJSON_AddStringToObject(responseObj, "message", "Missing params key");
-				cJSON_AddNumberToObject(responseObj, "statusCode", METHOD_STATUS_INVALID_REQUEST);
+				cJSON_AddNumberToObject(responseObj, "statusCode", *crudStatusOut);
 				responseStr = cJSON_PrintUnformatted(responseObj);
 				if(responseStr) *methodResponseOut = responseStr;
 				cJSON_Delete(responseObj);
@@ -1976,12 +1983,13 @@ int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **method
 
 	if (validCount == 0)
 	{
-		ParodusError("No valid subscription entries found.\n");
+		ParodusError("Invalid input. The request may contain malformed json, missing fields, or unsupported value types.\n");
+		if (crudStatusOut) *crudStatusOut = METHOD_STATUS_INVALID_REQUEST;
 		responseObj = cJSON_CreateObject();
 		if(responseObj)
 		{
-			cJSON_AddStringToObject(responseObj, "message", "No valid subscription entries found");
-			cJSON_AddNumberToObject(responseObj, "statusCode", METHOD_STATUS_INVALID_REQUEST);
+			cJSON_AddStringToObject(responseObj, "message", "Invalid input. Please check for for malformed json, missing or unsupported values.");
+			cJSON_AddNumberToObject(responseObj, "statusCode", *crudStatusOut);
 			responseStr = cJSON_PrintUnformatted(responseObj);
 			if(responseStr) *methodResponseOut = responseStr;
 			cJSON_Delete(responseObj);
@@ -2014,15 +2022,13 @@ int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **method
 	if(status_code == -1)
 		status_code = (rc == RBUS_ERROR_SUCCESS) ? METHOD_STATUS_SUCCESS : METHOD_STATUS_FAILURE;
 
-	ParodusInfo("Method Invoke response msg: %s, status: %d\n", return_message ? return_message : "NULL", status_code);
-
 	responseObj = cJSON_CreateObject();
 	if(responseObj)
 	{
+		if (crudStatusOut) *crudStatusOut = status_code;
 		cJSON_AddStringToObject(responseObj, "message", return_message ? return_message : "NULL");
 		cJSON_AddNumberToObject(responseObj, "statusCode", status_code);
 		responseStr = cJSON_PrintUnformatted(responseObj);
-		ParodusInfo("RBUS method invoke response JSON: %s\n", responseStr ? responseStr : "NULL");
 		if(responseStr) *methodResponseOut = responseStr;
 		cJSON_Delete(responseObj);
 	}

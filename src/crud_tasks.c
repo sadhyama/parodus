@@ -120,11 +120,11 @@ int processCrudRequest( wrp_msg_t *reqMsg, wrp_msg_t **responseMsg)
     return  0;
 }
 
-
 int processMethodRequest(wrp_msg_t *reqMsg, wrp_msg_t **response)
 {
     int ret = -1;
     char *methodResponse = NULL;
+	int crudStatus = 0;
 
     ParodusInfo("Processing method request\n");
 
@@ -166,23 +166,23 @@ int processMethodRequest(wrp_msg_t *reqMsg, wrp_msg_t **response)
     ParodusInfo("Received UPDATE method: '%s'\n", methodName);
 
 	#ifdef ENABLE_WEBCFGBIN
-    	ret = rbus_methodHandler(methodName, jsonPayload, &methodResponse);
+		ret = rbus_methodHandler(methodName, jsonPayload, &methodResponse, &crudStatus);
 	#endif
 	if (response && *response)
 	{
-		(*response)->u.crud.status = (ret == 0) ? 200 : 500;
-		if (methodResponse)
-		{
-			ParodusInfo("Response from method call:%s\n", methodResponse);
+		if (methodResponse) {
 			(*response)->u.crud.payload = strdup(methodResponse);
 			(*response)->u.crud.payload_size = strlen(methodResponse);
 		}
+		(*response)->u.crud.status = crudStatus;
 	}
 
-    if (ret == 0)
-		ParodusInfo("rbus_methodHandler Success. ret: %d\n", ret);
-    else
+    if (ret == -1) {
 		ParodusError("rbus_methodHandler failed. ret: %d\n", ret);
+	}
+    else {
+		ParodusInfo("rbus_methodHandler Success. ret: %d\n", ret);
+	}
 
     if (methodResponse)
         free(methodResponse);
