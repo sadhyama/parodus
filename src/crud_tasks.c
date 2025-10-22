@@ -65,12 +65,10 @@ int processCrudRequest( wrp_msg_t *reqMsg, wrp_msg_t **responseMsg)
 
 	if (strstr(reqMsg->u.crud.dest, "/parodus/method"))
 	{
-		ParodusInfo("Processing method invocation request\n");
 		ret = processMethodRequest(reqMsg, &resp_msg);
 		*responseMsg = resp_msg;
 		if (ret != 0)
 		{
-			ParodusError("Failed to Invoke method\n");
 			return -1;
 		}
 		break;
@@ -126,8 +124,6 @@ int processMethodRequest(wrp_msg_t *reqMsg, wrp_msg_t **response)
     char *methodResponse = NULL;
 	int crudStatus = 0;
 
-    ParodusInfo("Processing method request\n");
-
     if (!reqMsg || !reqMsg->u.crud.payload)
     {
         ParodusError("Invalid method request - missing payload\n");
@@ -163,7 +159,6 @@ int processMethodRequest(wrp_msg_t *reqMsg, wrp_msg_t **response)
 		ParodusError("Invalid RBUS method name. Methods Must include (): %s\n", methodName ? methodName : "NULL");
 		return -1;
 	}
-    ParodusInfo("Received UPDATE method: '%s'\n", methodName);
 
 	#ifdef ENABLE_WEBCFGBIN
 		ret = rbus_methodHandler(methodName, jsonPayload, &methodResponse, &crudStatus);
@@ -179,9 +174,6 @@ int processMethodRequest(wrp_msg_t *reqMsg, wrp_msg_t **response)
 
     if (ret == -1) {
 		ParodusError("rbus_methodHandler failed. ret: %d\n", ret);
-	}
-    else {
-		ParodusInfo("rbus_methodHandler Success. ret: %d\n", ret);
 	}
 
     if (methodResponse)
