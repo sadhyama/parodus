@@ -92,6 +92,16 @@ int deleteObject(wrp_msg_t *reqMsg , wrp_msg_t **response)
     return (int) mock();
 }
 
+int __wrap_rbus_methodHandler(const char *methodName, cJSON *jsonPayload, char **methodResponse, int *crudStatus)
+{
+    UNUSED(methodName);
+    UNUSED(jsonPayload);
+    function_called();
+    *methodResponse = strdup(mock_type(const char*));
+    *crudStatus = mock_type(int);
+    return mock_type(int);
+}
+
 /*----------------------------------------------------------------------------*/
 /*                                   Tests                                    */
 /*----------------------------------------------------------------------------*/
@@ -278,8 +288,8 @@ void test_processCrudRequestFailure()
 	wrp_free_struct(reqMsg);
 
 }
-
-void test_processCrudRequest_MethodInvocationFailure()
+#ifdef ENABLE_WEBCFGBIN
+void test_processCrudRequest_Invalid_Input_Payload()
 {
     int ret = -2;
     wrp_msg_t *reqMsg = malloc(sizeof(wrp_msg_t));
@@ -290,12 +300,14 @@ void test_processCrudRequest_MethodInvocationFailure()
     reqMsg->u.crud.source = strdup("tag-update");
     reqMsg->u.crud.dest = strdup("mac:14xxx/parodus/method/reboot");
 
+    expect_function_call(cJSON_Delete);
     ret = processCrudRequest(reqMsg, &response);
     assert_int_equal(ret, -1);
 
     if(reqMsg) wrp_free_struct(reqMsg);
 }
-void test_processCrudRequest_MethodInvocationFailure_InvalidPayload()
+
+void test_processCrudRequest_MethodInvocationFailure_Payload_Parse_Failure()
 {
     int ret = -2;
     wrp_msg_t *reqMsg = malloc(sizeof(wrp_msg_t));
@@ -304,46 +316,12 @@ void test_processCrudRequest_MethodInvocationFailure_InvalidPayload()
     reqMsg->msg_type = 7;
     reqMsg->u.crud.transaction_uuid = strdup("1234");
     reqMsg->u.crud.source = strdup("tag-update");
-    reqMsg->u.crud.dest = strdup("mac:14xxx/parodus/method/reboot");
+    reqMsg->u.crud.dest = strdup("mac:14xxx/parodus/method");
     reqMsg->u.crud.payload = strdup("{\"method\":\"Device.Reboot()\"}");
     reqMsg->u.crud.payload_size = strlen(reqMsg->u.crud.payload);
 
     expect_function_call(cJSON_Parse);
     will_return(cJSON_Parse, NULL);
-
-    ret = processCrudRequest(reqMsg, &response);
-    assert_int_equal(ret, -1);
-
-    wrp_free_struct(reqMsg);
-}
-
-void test_processCrudRequest_MethodInvocationFailure_InvalidObject()
-{
-    int ret = -2;
-    wrp_msg_t *reqMsg = malloc(sizeof(wrp_msg_t));
-    memset(reqMsg, 0, sizeof(wrp_msg_t));
-
-    reqMsg->msg_type = 7;
-    reqMsg->u.crud.transaction_uuid = strdup("1234");
-    reqMsg->u.crud.source = strdup("tag-update");
-    reqMsg->u.crud.dest = strdup("mac:14xxx/parodus/method/reboot");
-    reqMsg->u.crud.payload = strdup("{\"method\":\"Device.Reboot()\"}");
-    reqMsg->u.crud.payload_size = strlen(reqMsg->u.crud.payload);
-
-    // Fake cJSON objects
-    static cJSON fakeJson;
-    static cJSON fakeMethodObj;
-    fakeMethodObj.valuestring = NULL;
-
-    expect_function_call(cJSON_Parse);
-    will_return(cJSON_Parse, &fakeJson);
-
-    expect_function_call(cJSON_GetObjectItem);
-    will_return(cJSON_GetObjectItem, &fakeMethodObj);
-
-    expect_function_call(cJSON_IsString);
-    will_return(cJSON_IsString, 1);
-
     expect_function_call(cJSON_Delete);
 
     ret = processCrudRequest(reqMsg, &response);
@@ -352,7 +330,42 @@ void test_processCrudRequest_MethodInvocationFailure_InvalidObject()
     wrp_free_struct(reqMsg);
 }
 
-void test_processCrudRequest_MethodInvocationFailure_InvalidMethod()
+void test_processCrudRequest_MethodInvocationFailure_Missing_Method_Name()
+{
+    int ret = -2;
+    wrp_msg_t *reqMsg = malloc(sizeof(wrp_msg_t));
+    memset(reqMsg, 0, sizeof(wrp_msg_t));
+
+    reqMsg->msg_type = 7;
+    reqMsg->u.crud.transaction_uuid = strdup("1234");
+    reqMsg->u.crud.source = strdup("tag-update");
+    reqMsg->u.crud.dest = strdup("mac:14xxx/parodus/method");
+    reqMsg->u.crud.payload = strdup("{\"method\":\"Device.Reboot()\"}");
+    reqMsg->u.crud.payload_size = strlen(reqMsg->u.crud.payload);
+
+    static cJSON jsonObj;
+    static cJSON methodObj;
+    methodObj.valuestring = NULL; // method is NULL
+
+    expect_function_call(cJSON_Parse);
+    will_return(cJSON_Parse, &jsonObj);
+
+    expect_function_call(cJSON_GetObjectItem);
+    will_return(cJSON_GetObjectItem, &methodObj);
+
+    expect_function_call(cJSON_IsString);
+    will_return(cJSON_IsString, 1);
+
+    expect_function_call(cJSON_Delete);
+    expect_function_call(cJSON_Delete);
+
+    ret = processCrudRequest(reqMsg, &response);
+    assert_int_equal(ret, -1);
+
+    wrp_free_struct(reqMsg);
+}
+
+void test_processCrudRequest_MethodInvocationFailure_Invalid_Method_Name()
 {
     int ret = -2;
     wrp_msg_t *reqMsg = malloc(sizeof(wrp_msg_t));
@@ -365,21 +378,20 @@ void test_processCrudRequest_MethodInvocationFailure_InvalidMethod()
     reqMsg->u.crud.payload = strdup("{\"method\":\"Device.Reboot()\"}");
     reqMsg->u.crud.payload_size = strlen(reqMsg->u.crud.payload);
 
-    // Fake cJSON objects
-    static cJSON fakeJson;
-    static cJSON fakeMethodObj;
-    fakeMethodObj.valuestring = "Device.Reboot";
+    static cJSON jsonObj;
+    static cJSON methodObj;
+    methodObj.valuestring = "Device.Reboot";
 
     expect_function_call(cJSON_Parse);
-    will_return(cJSON_Parse, &fakeJson);
+    will_return(cJSON_Parse, &jsonObj);
 
     expect_function_call(cJSON_GetObjectItem);
-    will_return(cJSON_GetObjectItem, &fakeMethodObj);
+    will_return(cJSON_GetObjectItem, &methodObj);
 
     expect_function_call(cJSON_IsString);
     will_return(cJSON_IsString, 1);
-
-    // expect_function_call(cJSON_Delete);
+    expect_function_call(cJSON_Delete);
+    expect_function_call(cJSON_Delete);
 
     ret = processCrudRequest(reqMsg, &response);
     assert_int_equal(ret, -1);
@@ -387,7 +399,79 @@ void test_processCrudRequest_MethodInvocationFailure_InvalidMethod()
     wrp_free_struct(reqMsg);
 }
 
+void test_processCrudRequest_MethodInvocation_Success()
+{
+    int ret = -2;
+    wrp_msg_t *reqMsg = malloc(sizeof(wrp_msg_t));
+    memset(reqMsg, 0, sizeof(wrp_msg_t));
 
+    reqMsg->msg_type = 7;
+    reqMsg->u.crud.transaction_uuid = strdup("1234");
+    reqMsg->u.crud.source = strdup("tag-update");
+    reqMsg->u.crud.dest = strdup("mac:14xxx/parodus/method/reboot");
+    reqMsg->u.crud.payload = strdup("{\"method\":\"Device.Reboot()\"}");
+    reqMsg->u.crud.payload_size = strlen(reqMsg->u.crud.payload);
+
+    wrp_msg_t *response = calloc(1, sizeof(wrp_msg_t));
+    response->msg_type = 7;
+
+    static cJSON jsonObj;
+    static cJSON methodObj;
+    methodObj.valuestring = "Device.Reboot()";
+
+    expect_function_call(cJSON_Parse);
+    will_return(cJSON_Parse, &jsonObj);
+
+    expect_function_call(cJSON_GetObjectItem);
+    will_return(cJSON_GetObjectItem, &methodObj);
+
+    expect_function_call(cJSON_IsString);
+    will_return(cJSON_IsString, 1);
+
+    expect_function_call(__wrap_rbus_methodHandler);
+    will_return(__wrap_rbus_methodHandler, "{\"status\":\"success\",\"message\":\"Reboot triggered\"}");
+    will_return(__wrap_rbus_methodHandler, 200);
+    will_return(__wrap_rbus_methodHandler, 0);
+    expect_function_call(cJSON_Delete);
+
+    ret = processCrudRequest(reqMsg, &response);
+
+    assert_int_equal(ret, 0);
+    assert_non_null(response);
+    assert_non_null(response->u.crud.payload);
+    assert_string_equal(response->u.crud.payload, "{\"status\":\"success\",\"message\":\"Reboot triggered\"}");
+    assert_int_equal(response->u.crud.status, 200);
+
+    wrp_free_struct(reqMsg);
+    wrp_free_struct(response);
+}
+
+void test_setMethodResponse_Success()
+{
+    wrp_msg_t *respMsg = NULL;
+    respMsg = (wrp_msg_t *)malloc(sizeof(wrp_msg_t));
+    memset(respMsg, 0, sizeof(wrp_msg_t));
+    respMsg->msg_type = WRP_MSG_TYPE__UPDATE;
+
+    expect_function_call(cJSON_Delete);
+    
+    setMethodResponse(&respMsg, 400, "Unit test error");
+
+    assert_int_equal(respMsg->u.crud.status, 400);
+    assert_non_null(respMsg->u.crud.payload);
+    assert_int_equal(respMsg->u.crud.payload_size, strlen(respMsg->u.crud.payload));
+    wrp_free_struct(respMsg);
+}
+
+void test_setMethodResponse_Failure()
+{
+    wrp_msg_t *respMsg = NULL;
+    
+    setMethodResponse(&respMsg, 400, "Unit test error");
+
+    assert_null(respMsg);
+}
+#endif
 /*----------------------------------------------------------------------------*/
 /*                             External Functions                             */
 /*----------------------------------------------------------------------------*/
@@ -403,11 +487,17 @@ int main(void)
         cmocka_unit_test(test_processCrudRequestUpdateFailure),
         cmocka_unit_test(test_processCrudRequestDelete),
         cmocka_unit_test(test_processCrudRequestDeleteFailure),
-        cmocka_unit_test(test_processCrudRequestFailure),
-        cmocka_unit_test(test_processCrudRequest_MethodInvocationFailure),
-        cmocka_unit_test(test_processCrudRequest_MethodInvocationFailure_InvalidPayload),
-        cmocka_unit_test(test_processCrudRequest_MethodInvocationFailure_InvalidObject),
-        cmocka_unit_test(test_processCrudRequest_MethodInvocationFailure_InvalidMethod)
+        cmocka_unit_test(test_processCrudRequestFailure)
+#ifdef ENABLE_WEBCFGBIN
+        ,
+        cmocka_unit_test(test_processCrudRequest_Invalid_Input_Payload),
+        cmocka_unit_test(test_processCrudRequest_MethodInvocationFailure_Payload_Parse_Failure),
+        cmocka_unit_test(test_processCrudRequest_MethodInvocationFailure_Missing_Method_Name),
+        cmocka_unit_test(test_processCrudRequest_MethodInvocationFailure_Invalid_Method_Name),
+        cmocka_unit_test(test_processCrudRequest_MethodInvocation_Success),
+        cmocka_unit_test(test_setMethodResponse_Success),
+        cmocka_unit_test(test_setMethodResponse_Failure)
+#endif
     };
 
     return cmocka_run_group_tests(tests, NULL, NULL);

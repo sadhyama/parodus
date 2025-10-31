@@ -26,6 +26,7 @@
 #include <rbus.h>
 #include "config.h"
 #include <uuid/uuid.h>
+#include <cJSON.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -91,12 +92,12 @@ typedef enum
 
 typedef enum
 {
-    METHOD_STATUS_SUCCESS             = 200,
-    METHOD_STATUS_FAILURE             = 500,
-    METHOD_STATUS_MULTI_STATUS        = 207,
-    METHOD_STATUS_INVALID_REQUEST     = 400,
-    METHOD_STATUS_CONFLICT            = 409
-} METHOD_STATUS;
+    METHOD_STATUS_SUCCESS               = 200,
+    METHOD_STATUS_FAILURE               = 500,
+    METHOD_STATUS_MULTI_STATUS          = 207,
+    METHOD_STATUS_INVALID_REQUEST       = 400,
+    METHOD_STATUS_BOOTUP_IN_PROGRESS    = 503
+} METHOD_STATUS_CODE;
 /*----------------------------------------------------------------------------*/
 /*                             Function Prototypes                            */
 /*----------------------------------------------------------------------------*/
@@ -127,7 +128,7 @@ void checkMaxQandOptimize(XmidtMsg *xmdMsg);
 void checkMsgExpiry(XmidtMsg *xmdMsg);
 void mapXmidtStatusToStatusMessage(int status, char **message);
 int xmidtQOptmize();
-int rbus_methodHandler(const char *methodName, cJSON *payloadJson, char **methodResponseOut, int *crudStatusOut);
+int rbus_methodHandler(const char *methodName, cJSON *jsonPayload, char **methodResponseOut, int *crudStatusOut);
 #ifdef __cplusplus
 }
 #endif
