@@ -163,7 +163,9 @@ int processMethodRequest(wrp_msg_t *reqMsg, wrp_msg_t **response)
         cJSON_Delete(jsonPayload);
         return -1;
 	}
-	else if (!strstr(methodName, "()"))
+
+	size_t len = strlen(methodName);
+	if (len < 2 || strcmp(methodName + len - 2, "()") != 0)
 	{
 		ParodusError("Invalid method name %s. Method names must end with ()\n", methodName ? methodName : "");
 		setMethodResponse(response, METHOD_STATUS_INVALID_REQUEST, "Invalid method name. Method names must end with ()");

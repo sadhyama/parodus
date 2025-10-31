@@ -2006,14 +2006,21 @@ int rbus_methodHandler(const char *methodName, cJSON *jsonPayload, char **method
     // Invoke the rbus method
     ret = rbusMethod_Invoke(rbus_handle, methodName, inParams, &outParams);
     rbusObject_Release(inParams);
-	if(ret == RBUS_ERROR_SUCCESS)
+	if(ret == RBUS_ERROR_DESTINATION_NOT_FOUND)
 	{
-		ParodusInfo("rbusMethod_Invoke for %s is success\n", methodName);
+		if (crudStatusOut) *crudStatusOut = METHOD_STATUS_FAILURE;
+		if(methodResponseOut)
+		{
+			cJSON *respObj = cJSON_CreateObject();
+			cJSON_AddStringToObject(respObj, "message", "Destination not found");
+			cJSON_AddNumberToObject(respObj, "statusCode", METHOD_STATUS_FAILURE);
+			*methodResponseOut = cJSON_PrintUnformatted(respObj);
+			cJSON_Delete(respObj);
+		}
+		return -1;
 	}
-	else
-	{
-		ParodusInfo("rbusMethod_Invoke for %s is failed. ret %d %s\n", methodName, ret, rbusError_ToString(ret));
-	}
+
+	ParodusInfo("rbusMethod_Invoke for %s is %s\n", methodName, (ret == RBUS_ERROR_SUCCESS) ? "success" : rbusError_ToString(ret));
 
 	int status_code = -1;
 	const char *return_message = NULL;
