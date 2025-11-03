@@ -1834,7 +1834,7 @@ int rbus_methodHandler(const char *methodName, cJSON *jsonPayload, char **method
 
 					if (cJSON_IsString(inner))
 					{
-						if (inner->valuestring && strlen(inner->valuestring) > 0)
+						if (inner->valuestring)
 						{
 							const char* s = inner->valuestring;
 							rbusValue_SetString(val, s);
@@ -1908,7 +1908,7 @@ int rbus_methodHandler(const char *methodName, cJSON *jsonPayload, char **method
 
 							if (cJSON_IsString(field))
 							{
-								if (field->valuestring && strlen(field->valuestring) > 0)
+								if (field->valuestring)
 								{
 									rbusValue_SetString(val, field->valuestring);
 								}
@@ -1974,12 +1974,12 @@ int rbus_methodHandler(const char *methodName, cJSON *jsonPayload, char **method
 		}
 		else
 		{
-			ParodusError("Invalid or missing params field in request payload\n");
+			ParodusError("Missing params field in request payload\n");
 			if (crudStatusOut) *crudStatusOut = METHOD_STATUS_INVALID_REQUEST;
 			if(methodResponseOut)
 			{
 				cJSON *respObj = cJSON_CreateObject();
-				cJSON_AddStringToObject(respObj, "message", "Invalid or missing params field in request payload");
+				cJSON_AddStringToObject(respObj, "message", "Missing params field in request payload");
 				cJSON_AddNumberToObject(respObj, "statusCode", METHOD_STATUS_INVALID_REQUEST);
 				*methodResponseOut = cJSON_PrintUnformatted(respObj);
 				cJSON_Delete(respObj);
@@ -2012,7 +2012,7 @@ int rbus_methodHandler(const char *methodName, cJSON *jsonPayload, char **method
 		if(methodResponseOut)
 		{
 			cJSON *respObj = cJSON_CreateObject();
-			cJSON_AddStringToObject(respObj, "message", "Destination not found");
+			cJSON_AddStringToObject(respObj, "message", "Destination method not found");
 			cJSON_AddNumberToObject(respObj, "statusCode", METHOD_STATUS_FAILURE);
 			*methodResponseOut = cJSON_PrintUnformatted(respObj);
 			cJSON_Delete(respObj);
@@ -2020,7 +2020,14 @@ int rbus_methodHandler(const char *methodName, cJSON *jsonPayload, char **method
 		return -1;
 	}
 
-	ParodusInfo("rbusMethod_Invoke for %s is %s\n", methodName, (ret == RBUS_ERROR_SUCCESS) ? "success" : rbusError_ToString(ret));
+	if(ret == RBUS_ERROR_SUCCESS)
+	{
+		ParodusInfo("rbusMethod_Invoke for %s is success\n", methodName);
+	}
+	else
+	{
+		ParodusInfo("rbusMethod_Invoke for %s is failed. err: %s\n", methodName, rbusError_ToString(ret));
+	}
 
 	int status_code = -1;
 	const char *return_message = NULL;

@@ -70,7 +70,7 @@ int processCrudRequest( wrp_msg_t *reqMsg, wrp_msg_t **responseMsg)
 		*responseMsg = resp_msg;
 		if(ret == -1)
 		{
-			ParodusError("method failed to invoke\n");
+			ParodusError("Failed to invoke method\n");
 			return -1;
 		}
 		break;
@@ -148,20 +148,28 @@ int processMethodRequest(wrp_msg_t *reqMsg, wrp_msg_t **response)
 
     // Extract method field
     cJSON *methodObj = cJSON_GetObjectItem(jsonPayload, "method");
-    if (!cJSON_IsString(methodObj))
-    {
-        ParodusError("Invalid method field in request payload\n");
-		setMethodResponse(response, METHOD_STATUS_INVALID_REQUEST, "Invalid method field in request payload");
-        cJSON_Delete(jsonPayload);return -1;
-    }
+	if(!methodObj)
+	{
+		ParodusError("Missing method field in request payload\n");
+		setMethodResponse(response, METHOD_STATUS_INVALID_REQUEST, "Missing method field in request payload");
+		cJSON_Delete(jsonPayload);
+		return -1;
+	}
+	else if (!cJSON_IsString(methodObj))
+	{
+		ParodusError("Method field is not a string\n");
+		setMethodResponse(response, METHOD_STATUS_INVALID_REQUEST, "Method field is not a string");
+		cJSON_Delete(jsonPayload);
+		return -1;
+	}
 
 	methodName = methodObj->valuestring;
-	if(!methodName)
+	if (!methodName || !*methodName)
 	{
-		ParodusError("Missing method name in request payload\n");
-		setMethodResponse(response, METHOD_STATUS_INVALID_REQUEST, "Missing method name in request payload");
-        cJSON_Delete(jsonPayload);
-        return -1;
+		ParodusError("Method name is Empty/NULL in request payload\n");
+		setMethodResponse(response, METHOD_STATUS_INVALID_REQUEST, "Method name is Empty/NULL in request payload");
+		cJSON_Delete(jsonPayload);
+		return -1;
 	}
 
 	size_t len = strlen(methodName);
